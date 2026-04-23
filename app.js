@@ -28,20 +28,6 @@ function getExtension(name) {
   return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
 }
 
-function detectWorkstream(files) {
-  const names = files.map(file => file.name.toLowerCase()).join(' ');
-  if (names.includes('finance') || names.includes('erp') || names.includes('d365')) {
-    return 'Dynamics 365 / ERP';
-  }
-  if (names.includes('crm') || names.includes('sales') || names.includes('customer')) {
-    return 'CRM / Customer Engagement';
-  }
-  if (names.includes('data') || names.includes('bi') || names.includes('analytics')) {
-    return 'Data & Analytics';
-  }
-  return 'General proposal intake';
-}
-
 async function loadApiMessage() {
   if (!apiStatusTitle || !apiMessage) return;
 
@@ -72,7 +58,6 @@ function renderFiles() {
   fileList.innerHTML = '';
 
   if (!selectedFiles.length) {
-    fileList.innerHTML = '';
     analyzeButton.disabled = true;
     clearButton.disabled = true;
     statusTitle.textContent = 'Waiting for files';
@@ -85,7 +70,7 @@ function renderFiles() {
         <div class="feed-dot"></div>
         <div>
           <strong>Demo not started</strong>
-          <p>Upload one or more files to activate the mock workflow.</p>
+          <p>Upload one or more files to activate the analysis workflow.</p>
         </div>
       </div>
     `;
@@ -95,7 +80,7 @@ function renderFiles() {
   analyzeButton.disabled = false;
   clearButton.disabled = false;
   statusTitle.textContent = 'Files ready';
-  statusText.textContent = `${selectedFiles.length} file(s) loaded and ready for mock analysis.`;
+  statusText.textContent = `${selectedFiles.length} file(s) loaded and ready for analysis.`;
   resultDocCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
   resultWorkstream.textContent = 'Pending review';
   resultReadiness.textContent = 'Input received';
@@ -117,8 +102,8 @@ function renderFiles() {
     <div class="feed-item">
       <div class="feed-dot"></div>
       <div>
-        <strong>Files added to demo</strong>
-        <p>The workspace is ready for a simulated review pass.</p>
+        <strong>Files added</strong>
+        <p>The workspace is ready for a backend analysis request.</p>
       </div>
     </div>
   `;
@@ -129,15 +114,13 @@ function setFiles(fileCollection) {
   renderFiles();
 }
 
-function runMockAnalysis() {
+async function runAnalysis() {
   if (!selectedFiles.length) return;
 
-  const workstream = detectWorkstream(selectedFiles);
-  const readiness = selectedFiles.length >= 2 ? 'Draft can be prepared' : 'More source material recommended';
-
   statusTitle.textContent = 'Analyzing files';
-  statusText.textContent = 'Simulating intake, classification, and proposal preparation...';
+  statusText.textContent = 'Sending selected file metadata to the analysis API...';
   analyzeButton.disabled = true;
+  clearButton.disabled = true;
   analyzeButton.textContent = 'Analyzing...';
 
   analysisFeed.innerHTML = `
@@ -145,44 +128,71 @@ function runMockAnalysis() {
       <div class="feed-dot"></div>
       <div>
         <strong>Analysis started</strong>
-        <p>Reviewing uploaded material and preparing a mock summary.</p>
+        <p>The backend is reviewing file metadata and preparing a structured response.</p>
       </div>
     </div>
   `;
 
-  window.setTimeout(() => {
-    statusTitle.textContent = 'Analysis complete';
-    statusText.textContent = 'The demo generated a mock summary based on the selected files.';
-    resultDocCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
-    resultWorkstream.textContent = workstream;
-    resultReadiness.textContent = readiness;
-    analyzeButton.disabled = false;
-    analyzeButton.textContent = 'Analyze files';
+  try {
+    const payload = {
+      files: selectedFiles.map(file => ({
+        name: file.name,
+        size: file.size,
+        type: file.type || ''
+      }))
+    };
 
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.message || 'Analysis failed.');
+    }
+
+    statusTitle.textContent = 'Analysis complete';
+    statusText.textContent = 'The backend returned a structured analysis summary.';
+    resultDocCount.textContent = `${data.summary.documentCount} file${data.summary.documentCount > 1 ? 's' : ''}`;
+    resultWorkstream.textContent = data.summary.workstream;
+    resultReadiness.textContent = data.summary.readiness;
+
+    analysisFeed.innerHTML = data.feed.map(item => `
+      <div class="feed-item">
+        <div class="feed-dot"></div>
+        <div>
+          <strong>${item.title}</strong>
+          <p>${item.text}</p>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    statusTitle.textContent = 'Analysis failed';
+    statusText.textContent = 'The analysis API could not process the request.';
     analysisFeed.innerHTML = `
       <div class="feed-item">
         <div class="feed-dot"></div>
         <div>
-          <strong>Content grouped</strong>
-          <p>The uploaded files were grouped into a provisional workstream: ${workstream}.</p>
-        </div>
-      </div>
-      <div class="feed-item">
-        <div class="feed-dot"></div>
-        <div>
-          <strong>Proposal signal detected</strong>
-          <p>The demo indicates the material is suitable for a structured draft and internal review.</p>
-        </div>
-      </div>
-      <div class="feed-item">
-        <div class="feed-dot"></div>
-        <div>
-          <strong>Recommended next step</strong>
-          <p>Move to response drafting, scope review, and page generation for customer presentation.</p>
+          <strong>Analysis error</strong>
+          <p>${error.message}</p>
         </div>
       </div>
     `;
-  }, 1400);
+    console.error('Analyze error:', error);
+  } finally {
+    analyzeButton.disabled = !selectedFiles.length;
+    clearButton.disabled = !selectedFiles.length;
+    analyzeButton.textContent = 'Analyze files';
+  }
 }
 
 function clearFiles() {
@@ -233,7 +243,7 @@ fileInput.addEventListener('change', event => {
   }
 });
 
-analyzeButton.addEventListener('click', runMockAnalysis);
+analyzeButton.addEventListener('click', runAnalysis);
 clearButton.addEventListener('click', clearFiles);
 
 renderFiles();
