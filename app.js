@@ -41,6 +41,7 @@ const reportEvaluationFocus = document.getElementById('report-evaluation-focus')
 const reportResponseOutline = document.getElementById('report-response-outline');
 const reportDetectedSignals = document.getElementById('report-detected-signals');
 const reportMissingSignals = document.getElementById('report-missing-signals');
+const reportComplianceMatrix = document.getElementById('report-compliance-matrix');
 const analysisFeed = document.getElementById('analysis-feed');
 const backToWorkspaceLink = document.getElementById('back-to-workspace-link');
 
@@ -225,6 +226,47 @@ function renderSimpleStringList(container, items, emptyText) {
   `).join('');
 }
 
+function statusBadgeClass(status) {
+  const normalized = String(status || '').toLowerCase().replaceAll(' ', '-');
+  return `badge badge-status-${normalized}`;
+}
+
+function complianceBadgeClass(value) {
+  const normalized = String(value || '').toLowerCase();
+  return `badge badge-yn-${normalized}`;
+}
+
+function renderComplianceMatrix(items) {
+  if (!reportComplianceMatrix) return;
+
+  if (!items || !items.length) {
+    reportComplianceMatrix.innerHTML = `
+      <tr>
+        <td colspan="8">
+          <div class="empty-state-text">No compliance matrix available yet.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  reportComplianceMatrix.innerHTML = items.map(item => `
+    <tr>
+      <td><strong>${escapeHtml(item.requirementId || item.rowId || '')}</strong></td>
+      <td>
+        <strong>${escapeHtml(item.requirementTitle || '')}</strong><br>
+        ${escapeHtml(item.requirementText || '')}
+      </td>
+      <td><span class="${statusBadgeClass(item.status)}">${escapeHtml(item.status || '')}</span></td>
+      <td>${escapeHtml(item.priority || '')}</td>
+      <td><span class="${complianceBadgeClass(item.compliance)}">${escapeHtml(item.compliance || '')}</span></td>
+      <td>${escapeHtml(item.owner || '')}</td>
+      <td>${escapeHtml(item.proposalSection || '')}</td>
+      <td>${escapeHtml(item.responseAction || '')}</td>
+    </tr>
+  `).join('');
+}
+
 function renderFeed(feed) {
   if (!analysisFeed) return;
 
@@ -275,6 +317,7 @@ function resetReportView() {
   renderResponseOutline([]);
   renderSimpleStringList(reportDetectedSignals, [], 'No detected signals available yet.');
   renderSimpleStringList(reportMissingSignals, [], 'No missing signals available yet.');
+  renderComplianceMatrix([]);
   renderFeed([]);
 }
 
@@ -321,6 +364,7 @@ function renderReport(report) {
   renderResponseOutline(report.responseOutline || []);
   renderSimpleStringList(reportDetectedSignals, diagnostics.detectedSignals || [], 'No detected signals available yet.');
   renderSimpleStringList(reportMissingSignals, diagnostics.missingSignals || [], 'No missing signals available yet.');
+  renderComplianceMatrix(report.complianceMatrix || []);
   renderFeed(report.feed || []);
 
   openReportButton.disabled = false;
@@ -446,7 +490,7 @@ async function runAnalysis() {
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The backend returned a structured analysis summary.';
     suggestedNextStepTitle.textContent = 'Open report';
-    suggestedNextStepText.textContent = 'Review the full analysis report, including requirements, gaps, and the proposed response structure.';
+    suggestedNextStepText.textContent = 'Review the full analysis report, including compliance tracking, gaps, and the proposed response structure.';
     openReportButton.disabled = false;
   } catch (error) {
     statusTitle.textContent = 'Analysis failed';
