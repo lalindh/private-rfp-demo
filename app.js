@@ -49,6 +49,10 @@ const kpiDetected = document.getElementById('kpi-detected');
 const kpiAssumed = document.getElementById('kpi-assumed');
 const kpiGap = document.getElementById('kpi-gap');
 const kpiNeedsReview = document.getElementById('kpi-needs-review');
+const kpiReviewed = document.getElementById('kpi-reviewed');
+const kpiDueSoon = document.getElementById('kpi-due-soon');
+const kpiOverdue = document.getElementById('kpi-overdue');
+const kpiNotes = document.getElementById('kpi-notes');
 
 const matrixSearch = document.getElementById('matrix-search');
 const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
@@ -246,6 +250,21 @@ function complianceBadgeClass(value) {
   return `badge badge-yn-${normalized}`;
 }
 
+function reviewBadgeClass(value) {
+  const normalized = String(value || '').toLowerCase().replaceAll(' ', '-');
+  return `badge badge-review-${normalized}`;
+}
+
+function buildEditableComplianceMatrix(items) {
+  return (items || []).map(item => ({
+    ...item,
+    ownerEditable: item.owner || '',
+    reviewState: 'Not started',
+    dueDate: '',
+    comments: ''
+  }));
+}
+
 function getFilteredComplianceItems(items) {
   return (items || []).filter(item => {
     const matchesFilter =
@@ -256,10 +275,14 @@ function getFilteredComplianceItems(items) {
       item.requirementTitle,
       item.requirementText,
       item.owner,
+      item.ownerEditable,
       item.proposalSection,
       item.responseAction,
       item.priority,
-      item.status
+      item.status,
+      item.reviewState,
+      item.comments,
+      item.dueDate
     ].join(' ').toLowerCase();
 
     const matchesSearch =
@@ -267,6 +290,28 @@ function getFilteredComplianceItems(items) {
 
     return matchesFilter && matchesSearch;
   });
+}
+
+function getDueDateState(dateValue) {
+  if (!dateValue) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const due = new Date(dateValue);
+  due.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { label: 'Overdue', className: 'date-state date-state-overdue' };
+  }
+
+  if (diffDays <= 7) {
+    return { label: 'Due soon', className: 'date-state date-state-soon' };
+  }
+
+  return { label: 'Planned', className: 'date-state date-state-ok' };
 }
 
 function renderComplianceMatrix(items) {
@@ -277,7 +322,7 @@ function renderComplianceMatrix(items) {
   if (!filteredItems.length) {
     reportComplianceMatrix.innerHTML = `
       <tr>
-        <td colspan="8">
+        <td colspan="11">
           <div class="empty-state-text">No compliance rows match the current filter or search.</div>
         </td>
       </tr>
@@ -285,21 +330,82 @@ function renderComplianceMatrix(items) {
     return;
   }
 
-  reportComplianceMatrix.innerHTML = filteredItems.map(item => `
-    <tr>
-      <td><strong>${escapeHtml(item.requirementId || item.rowId || '')}</strong></td>
-      <td>
-        <strong>${escapeHtml(item.requirementTitle || '')}</strong><br>
-        ${escapeHtml(item.requirementText || '')}
-      </td>
-      <td><span class="${statusBadgeClass(item.status)}">${escapeHtml(item.status || '')}</span></td>
-      <td>${escapeHtml(item.priority || '')}</td>
-      <td><span class="${complianceBadgeClass(item.compliance)}">${escapeHtml(item.compliance || '')}</span></td>
-      <td>${escapeHtml(item.owner || '')}</td>
-      <td>${escapeHtml(item.proposalSection || '')}</td>
-      <td>${escapeHtml(item.responseAction || '')}</td>
-    </tr>
-  `).join('');
+  reportComplianceMatrix.innerHTML = filteredItems.map(item => {
+    const dateState = getDueDateState(item.dueDate);
+
+    return `
+      <tr>
+        <td><strong>${escapeHtml(item.requirementId || item.rowId || '')}</strong></td>
+        <td>
+          <div class="table-meta">
+            <div>
+              <strong>${escapeHtml(item.requirementTitle || '')}</strong><br>
+              ${escapeHtml(item.requirementText || '')}
+            </div>
+            <span class="table-help">${escapeHtml(item.source || '')}</span>
+          </div>
+        </td>
+        <td><span class="${statusBadgeClass(item.status)}">${escapeHtml(item.status || '')}</span></td>
+        <td>${escapeHtml(item.priority || '')}</td>
+        <td><span class="${complianceBadgeClass(item.compliance)}">${escapeHtml(item.compliance || '')}</span></td>
+        <td>
+          <label class="sr-only" for="owner-${escapeHtml(item.requirementId || item.rowId || '')}">Owner</label>
+          <input
+            id="owner-${escapeHtml(item.requirementId || item.rowId || '')}"
+            class="table-input"
+            type="text"
+            value="${escapeHtml(item.ownerEditable || '')}"
+            data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
+            data-field="ownerEditable"
+            placeholder="Assign owner"
+          />
+        </td>
+        <td>${escapeHtml(item.proposalSection || '')}</td>
+        <td>
+          <div class="table-meta">
+            <span class="${reviewBadgeClass(item.reviewState)}">${escapeHtml(item.reviewState || '')}</span>
+            <label class="sr-only" for="review-${escapeHtml(item.requirementId || item.rowId || '')}">Review state</label>
+            <select
+              id="review-${escapeHtml(item.requirementId || item.rowId || '')}"
+              class="table-select"
+              data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
+              data-field="reviewState"
+            >
+              <option value="Not started" ${item.reviewState === 'Not started' ? 'selected' : ''}>Not started</option>
+              <option value="In review" ${item.reviewState === 'In review' ? 'selected' : ''}>In review</option>
+              <option value="Reviewed" ${item.reviewState === 'Reviewed' ? 'selected' : ''}>Reviewed</option>
+              <option value="Blocked" ${item.reviewState === 'Blocked' ? 'selected' : ''}>Blocked</option>
+            </select>
+          </div>
+        </td>
+        <td>
+          <div class="table-meta">
+            <label class="sr-only" for="due-${escapeHtml(item.requirementId || item.rowId || '')}">Due date</label>
+            <input
+              id="due-${escapeHtml(item.requirementId || item.rowId || '')}"
+              class="table-input"
+              type="date"
+              value="${escapeHtml(item.dueDate || '')}"
+              data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
+              data-field="dueDate"
+            />
+            ${dateState ? `<span class="${dateState.className}">${escapeHtml(dateState.label)}</span>` : '<span class="table-help">No due date</span>'}
+          </div>
+        </td>
+        <td>
+          <label class="sr-only" for="comment-${escapeHtml(item.requirementId || item.rowId || '')}">Comments</label>
+          <textarea
+            id="comment-${escapeHtml(item.requirementId || item.rowId || '')}"
+            class="table-textarea"
+            data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
+            data-field="comments"
+            placeholder="Internal note, action, blocker or reviewer comment"
+          >${escapeHtml(item.comments || '')}</textarea>
+        </td>
+        <td>${escapeHtml(item.responseAction || '')}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function renderFeed(feed) {
@@ -329,7 +435,7 @@ function renderFeed(feed) {
   `).join('');
 }
 
-function renderKpis(requirements) {
+function renderKpis(requirements, complianceItems) {
   const counts = {
     detected: 0,
     assumed: 0,
@@ -344,10 +450,29 @@ function renderKpis(requirements) {
     if (item.status === 'Needs review') counts.needsReview += 1;
   });
 
+  let reviewed = 0;
+  let dueSoon = 0;
+  let overdue = 0;
+  let notes = 0;
+
+  (complianceItems || []).forEach(item => {
+    if (item.reviewState === 'Reviewed') reviewed += 1;
+    if (item.comments && item.comments.trim()) notes += 1;
+
+    const dueState = getDueDateState(item.dueDate);
+    if (dueState?.label === 'Due soon') dueSoon += 1;
+    if (dueState?.label === 'Overdue') overdue += 1;
+  });
+
   kpiDetected.textContent = counts.detected;
   kpiAssumed.textContent = counts.assumed;
   kpiGap.textContent = counts.gap;
   kpiNeedsReview.textContent = counts.needsReview;
+
+  kpiReviewed.textContent = reviewed;
+  kpiDueSoon.textContent = dueSoon;
+  kpiOverdue.textContent = overdue;
+  kpiNotes.textContent = notes;
 }
 
 function setActiveFilter(filterValue) {
@@ -386,7 +511,7 @@ function resetReportView() {
   reportReadiness.textContent = 'Awaiting input';
   reportExecutiveSummary.textContent = 'No report has been generated yet.';
 
-  renderKpis([]);
+  renderKpis([], []);
   renderBasicList(reportScopeSignals, [], '', 'No scope signals yet.');
   renderBasicList(reportRiskFlags, [], 'risk', 'No risk flags yet.');
   renderBasicList(reportRecommendedActions, [], 'action', 'No actions available yet.');
@@ -434,7 +559,7 @@ function renderReport(report) {
   reportReadiness.textContent = readiness;
   reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
 
-  renderKpis(report.requirements || []);
+  renderKpis(report.requirements || [], report.complianceMatrix || []);
   renderBasicList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
   renderBasicList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
   renderBasicList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
@@ -451,6 +576,22 @@ function renderReport(report) {
   renderFeed(report.feed || []);
 
   openReportButton.disabled = false;
+}
+
+function updateComplianceRow(rowId, field, value) {
+  if (!latestReport || !Array.isArray(latestReport.complianceMatrix)) return;
+
+  latestReport.complianceMatrix = latestReport.complianceMatrix.map(item => {
+    const currentId = item.requirementId || item.rowId;
+    if (currentId !== rowId) return item;
+    return {
+      ...item,
+      [field]: value
+    };
+  });
+
+  renderKpis(latestReport.requirements || [], latestReport.complianceMatrix || []);
+  renderComplianceMatrix(latestReport.complianceMatrix || []);
 }
 
 async function loadApiMessage() {
@@ -567,14 +708,18 @@ async function runAnalysis() {
       throw new Error(data.message || 'Analysis failed.');
     }
 
-    latestReport = data;
+    latestReport = {
+      ...data,
+      complianceMatrix: buildEditableComplianceMatrix(data.complianceMatrix || [])
+    };
+
     resetWorkspaceControls();
     renderReport(latestReport);
 
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The backend returned a structured analysis summary.';
     suggestedNextStepTitle.textContent = 'Open report';
-    suggestedNextStepText.textContent = 'Review the full analysis report, including KPI summary, compliance tracking, gaps, and the proposed response structure.';
+    suggestedNextStepText.textContent = 'Review the full analysis report, including ownership, comments, due dates and compliance tracking.';
     openReportButton.disabled = false;
   } catch (error) {
     statusTitle.textContent = 'Analysis failed';
@@ -667,6 +812,26 @@ filterButtons.forEach(button => {
     setActiveFilter(button.dataset.filter);
   });
 });
+
+if (reportComplianceMatrix) {
+  reportComplianceMatrix.addEventListener('input', event => {
+    const target = event.target;
+    const rowId = target.dataset.rowId;
+    const field = target.dataset.field;
+
+    if (!rowId || !field) return;
+    updateComplianceRow(rowId, field, target.value);
+  });
+
+  reportComplianceMatrix.addEventListener('change', event => {
+    const target = event.target;
+    const rowId = target.dataset.rowId;
+    const field = target.dataset.field;
+
+    if (!rowId || !field) return;
+    updateComplianceRow(rowId, field, target.value);
+  });
+}
 
 window.addEventListener('popstate', renderView);
 
