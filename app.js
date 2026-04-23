@@ -7,6 +7,9 @@ const fileList = document.getElementById('file-list');
 const statusTitle = document.getElementById('status-title');
 const statusText = document.getElementById('status-text');
 
+const apiStatusTitle = document.getElementById('api-status-title');
+const apiMessage = document.getElementById('api-message');
+
 const resultDocCount = document.getElementById('result-doc-count');
 const resultWorkstream = document.getElementById('result-workstream');
 const resultReadiness = document.getElementById('result-readiness');
@@ -37,6 +40,32 @@ function detectWorkstream(files) {
     return 'Data & Analytics';
   }
   return 'General proposal intake';
+}
+
+async function loadApiMessage() {
+  if (!apiStatusTitle || !apiMessage) return;
+
+  apiStatusTitle.textContent = 'Checking connection...';
+  apiMessage.textContent = 'Trying to load message from Azure Functions.';
+
+  try {
+    const response = await fetch('/api/message');
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    apiStatusTitle.textContent = 'Connected to API';
+    apiMessage.textContent = data.message
+      ? `${data.message}${data.timestamp ? ` (${data.timestamp})` : ''}`
+      : 'API responded successfully, but no message field was returned.';
+  } catch (error) {
+    apiStatusTitle.textContent = 'API unavailable';
+    apiMessage.textContent = 'Could not load message from /api/message';
+    console.error('API error:', error);
+  }
 }
 
 function renderFiles() {
@@ -208,3 +237,4 @@ analyzeButton.addEventListener('click', runMockAnalysis);
 clearButton.addEventListener('click', clearFiles);
 
 renderFiles();
+loadApiMessage();
