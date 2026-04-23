@@ -32,9 +32,9 @@
         <section class="hero-card">
           <div class="hero-copy">
             <p class="eyebrow">Proposal intake demo</p>
-            <h2>Upload documents and structure the intake before analysis</h2>
+            <h2>Upload documents and build a reviewable compliance workspace</h2>
             <p class="lede">
-              Mark document roles clearly so the platform can distinguish the functional requirements source from the main RFP, commercial documents and supporting material.
+              Mark document roles clearly so the platform can distinguish functional requirements from the main RFP and supporting material before deeper analysis.
             </p>
             <div class="hero-actions">
               <a href="#upload-panel" class="button button-primary">Go to upload</a>
@@ -45,23 +45,23 @@
           <aside class="hero-side">
             <div class="mini-stat">
               <span class="mini-stat-label">Current mode</span>
-              <strong>Structured intake</strong>
-              <p>Designed to reduce ambiguity before deeper analysis.</p>
+              <strong>Structured intake + review tracking</strong>
+              <p>Prepared for requirement ownership, deadlines and review workflow.</p>
             </div>
             <div class="mini-stat">
-              <span class="mini-stat-label">Recommended input</span>
+              <span class="mini-stat-label">Recommended source</span>
               <strong>Excel as requirements master</strong>
-              <p>Use an Excel file for the real requirement rows where possible.</p>
+              <p>Use Excel as the main source when real requirements are spread over tabs and rows.</p>
             </div>
           </aside>
         </section>
 
         <section id="upload-panel" class="panel">
           <div class="section-heading">
-            <p class="section-label">Step 10</p>
+            <p class="section-label">Step 11</p>
             <h2>Upload and classify documents</h2>
             <p>
-              Upload one or more files, then assign a document role per file before running the analysis.
+              Upload one or more files, assign a document role per file, then run the analysis to generate a report and working compliance matrix.
             </p>
           </div>
 
@@ -142,7 +142,7 @@
               <div class="role-legend">
                 <div class="role-card is-primary">
                   <strong>Functional requirements</strong>
-                  <p>Use for Excel files that contain the actual requirement rows.</p>
+                  <p>Use for Excel files that contain the real requirement rows.</p>
                 </div>
                 <div class="role-card">
                   <strong>Main RFP</strong>
@@ -164,19 +164,19 @@
           <article class="info-card">
             <span class="status-label">1</span>
             <h3>Intake</h3>
-            <p>Upload all relevant documents and clearly distinguish the requirement source from supporting documents.</p>
+            <p>Upload all relevant documents and clearly identify the requirements master.</p>
           </article>
 
           <article class="info-card">
             <span class="status-label">2</span>
             <h3>Analyze</h3>
-            <p>Generate a first structured requirement view with document-role awareness and process mapping.</p>
+            <p>Generate requirement rows, process mapping, fit/gap signals and review metadata.</p>
           </article>
 
           <article class="info-card">
             <span class="status-label">3</span>
-            <h3>Review</h3>
-            <p>Validate fit, gap, assumptions and unclear items before building proposal content.</p>
+            <h3>Assign</h3>
+            <p>Use owner, deadline and review status to turn the matrix into a real working board.</p>
           </article>
         </section>
       </section>
@@ -362,7 +362,7 @@
             <div class="matrix-header">
               <div>
                 <h3>Requirement and process tracking</h3>
-                <p>Filter by status, requirement type and fit type.</p>
+                <p>Filter by status, requirement type and fit type, then assign review ownership and deadlines.</p>
               </div>
             </div>
 
@@ -401,7 +401,7 @@
 
                 <label class="filter-field filter-field-wide">
                   <span>Search</span>
-                  <input id="matrix-search" type="search" placeholder="Search requirement, process or source" />
+                  <input id="matrix-search" type="search" placeholder="Search requirement, process, source or owner" />
                 </label>
               </div>
             </div>
@@ -417,17 +417,22 @@
                     <th>Status</th>
                     <th>Fit type</th>
                     <th>Confidence</th>
+                    <th>Sheet / row</th>
                     <th>Scenario</th>
                     <th>Process area</th>
                     <th>Process</th>
                     <th>Source</th>
+                    <th>Owner</th>
+                    <th>Deadline</th>
+                    <th>Review status</th>
+                    <th>Comments</th>
                     <th>Review reason</th>
                     <th>Response action</th>
                   </tr>
                 </thead>
                 <tbody id="report-compliance-matrix">
                   <tr>
-                    <td colspan="13">
+                    <td colspan="18">
                       <div class="empty-state-text">No compliance matrix available yet.</div>
                     </td>
                   </tr>
