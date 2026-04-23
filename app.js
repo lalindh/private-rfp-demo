@@ -4,6 +4,7 @@ const analyzeButton = document.getElementById('analyze-button');
 const openReportButton = document.getElementById('open-report-button');
 const clearButton = document.getElementById('clear-button');
 const fileList = document.getElementById('file-list');
+const roleFileList = document.getElementById('role-file-list');
 
 const statusTitle = document.getElementById('status-title');
 const statusText = document.getElementById('status-text');
@@ -65,6 +66,7 @@ let activeMatrixFilter = 'all';
 let activeMatrixSearch = '';
 let activeTypeFilter = 'all';
 let activeFitFilter = 'all';
+let fileRoles = new Map();
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -75,6 +77,16 @@ function formatBytes(bytes) {
 function getExtension(name) {
   const parts = name.split('.');
   return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
+}
+
+function getDefaultRole(file) {
+  const name = file.name.toLowerCase();
+  const ext = getExtension(file.name).toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') return 'Functional requirements';
+  if (name.includes('rfp') || name.includes('request for proposal')) return 'Main RFP';
+  if (name.includes('commercial') || name.includes('pricing')) return 'Commercial';
+  if (name.includes('evaluation')) return 'Evaluation criteria';
+  return 'Other';
 }
 
 function escapeHtml(value) {
@@ -104,9 +116,7 @@ function goToWorkspace() {
 
 function setLoading(isLoading, title = '', text = '') {
   if (!loadingPanel) return;
-
   loadingPanel.classList.toggle('hidden', !isLoading);
-
   if (isLoading) {
     loadingTitle.textContent = title || 'Preparing analysis';
     loadingText.textContent = text || 'The system is processing the selected files.';
@@ -115,12 +125,10 @@ function setLoading(isLoading, title = '', text = '') {
 
 function renderBasicList(container, items, variant, emptyText) {
   if (!container) return;
-
   if (!items || !items.length) {
     container.innerHTML = `<div class="empty-state-text">${escapeHtml(emptyText)}</div>`;
     return;
   }
-
   container.innerHTML = items.map(item => `
     <div class="signal-item ${variant ? `signal-item-${variant}` : ''}">
       <strong>${escapeHtml(item.title || item.section || 'Untitled')}</strong>
@@ -131,12 +139,10 @@ function renderBasicList(container, items, variant, emptyText) {
 
 function renderCatalogMatches(items) {
   if (!reportCatalogMatches) return;
-
   if (!items || !items.length) {
     reportCatalogMatches.innerHTML = '<div class="empty-state-text">No catalog matches available yet.</div>';
     return;
   }
-
   reportCatalogMatches.innerHTML = items.map(item => `
     <div class="signal-item signal-item-catalog">
       <span class="signal-meta">${escapeHtml(item.level || 'Scenario')} · ${escapeHtml(item.type || 'Process id')}</span>
@@ -148,12 +154,10 @@ function renderCatalogMatches(items) {
 
 function renderProposalPageSections(items) {
   if (!reportProposalPageSections) return;
-
   if (!items || !items.length) {
     reportProposalPageSections.innerHTML = '<div class="empty-state-text">No proposal sections available yet.</div>';
     return;
   }
-
   reportProposalPageSections.innerHTML = items.map(item => `
     <div class="signal-item signal-item-section">
       <strong>${escapeHtml(item.title || 'Untitled section')}</strong>
@@ -164,12 +168,10 @@ function renderProposalPageSections(items) {
 
 function renderRequirements(items) {
   if (!reportRequirements) return;
-
   if (!items || !items.length) {
     reportRequirements.innerHTML = '<div class="empty-state-text">No requirements available yet.</div>';
     return;
   }
-
   reportRequirements.innerHTML = items.map(item => `
     <div class="signal-item signal-item-requirement">
       <span class="signal-meta">${escapeHtml(item.requirementId || 'REQ')} · ${escapeHtml(item.requirementType || 'Requirement')} · ${escapeHtml(item.fitType || 'Fit')}</span>
@@ -182,12 +184,10 @@ function renderRequirements(items) {
 
 function renderAssumptions(items) {
   if (!reportAssumptions) return;
-
   if (!items || !items.length) {
     reportAssumptions.innerHTML = '<div class="empty-state-text">No assumptions available yet.</div>';
     return;
   }
-
   reportAssumptions.innerHTML = items.map(item => `
     <div class="signal-item signal-item-assumption">
       <strong>${escapeHtml(item.title || 'Untitled assumption')}</strong>
@@ -198,12 +198,10 @@ function renderAssumptions(items) {
 
 function renderGaps(items) {
   if (!reportGaps) return;
-
   if (!items || !items.length) {
     reportGaps.innerHTML = '<div class="empty-state-text">No gaps available yet.</div>';
     return;
   }
-
   reportGaps.innerHTML = items.map(item => `
     <div class="signal-item signal-item-gap">
       <span class="signal-meta">${escapeHtml(item.id || 'GAP')} · ${escapeHtml(item.severity || 'Severity')}</span>
@@ -216,12 +214,10 @@ function renderGaps(items) {
 
 function renderResponseOutline(items) {
   if (!reportResponseOutline) return;
-
   if (!items || !items.length) {
     reportResponseOutline.innerHTML = '<div class="empty-state-text">No response outline available yet.</div>';
     return;
   }
-
   reportResponseOutline.innerHTML = items.map(item => `
     <div class="signal-item signal-item-outline">
       <span class="signal-meta">${escapeHtml(item.section || 'Section')}</span>
@@ -232,12 +228,10 @@ function renderResponseOutline(items) {
 
 function renderSimpleStringList(container, items, emptyText) {
   if (!container) return;
-
   if (!items || !items.length) {
     container.innerHTML = `<div class="empty-state-text">${escapeHtml(emptyText)}</div>`;
     return;
   }
-
   container.innerHTML = items.map(item => `
     <div class="signal-item">
       <p>${escapeHtml(item)}</p>
@@ -262,14 +256,9 @@ function confidenceBadgeClass(value) {
 
 function getFilteredComplianceItems(items) {
   return (items || []).filter(item => {
-    const matchesStatus =
-      activeMatrixFilter === 'all' || item.status === activeMatrixFilter;
-
-    const matchesType =
-      activeTypeFilter === 'all' || item.requirementType === activeTypeFilter;
-
-    const matchesFit =
-      activeFitFilter === 'all' || item.fitType === activeFitFilter;
+    const matchesStatus = activeMatrixFilter === 'all' || item.status === activeMatrixFilter;
+    const matchesType = activeTypeFilter === 'all' || item.requirementType === activeTypeFilter;
+    const matchesFit = activeFitFilter === 'all' || item.fitType === activeFitFilter;
 
     const searchHaystack = [
       item.requirementId,
@@ -287,12 +276,12 @@ function getFilteredComplianceItems(items) {
       item.sourceDocument,
       item.sourceSection,
       item.reviewReason,
-      item.responseAction
+      item.responseAction,
+      item.documentRole,
+      item.sourceMode
     ].join(' ').toLowerCase();
 
-    const matchesSearch =
-      !activeMatrixSearch || searchHaystack.includes(activeMatrixSearch.toLowerCase());
-
+    const matchesSearch = !activeMatrixSearch || searchHaystack.includes(activeMatrixSearch.toLowerCase());
     return matchesStatus && matchesType && matchesFit && matchesSearch;
   });
 }
@@ -349,7 +338,6 @@ function renderComplianceMatrix(items) {
 
 function renderFeed(feed) {
   if (!analysisFeed) return;
-
   if (!feed || !feed.length) {
     analysisFeed.innerHTML = `
       <div class="feed-item">
@@ -362,7 +350,6 @@ function renderFeed(feed) {
     `;
     return;
   }
-
   analysisFeed.innerHTML = feed.map(item => `
     <div class="feed-item">
       <div class="feed-dot"></div>
@@ -409,14 +396,10 @@ function renderKpis(requirements) {
 
 function setActiveFilter(filterValue) {
   activeMatrixFilter = filterValue;
-
   filterButtons.forEach(button => {
     button.classList.toggle('is-active', button.dataset.filter === filterValue);
   });
-
-  if (latestReport) {
-    renderComplianceMatrix(latestReport.complianceMatrix || []);
-  }
+  if (latestReport) renderComplianceMatrix(latestReport.complianceMatrix || []);
 }
 
 function resetWorkspaceControls() {
@@ -424,11 +407,9 @@ function resetWorkspaceControls() {
   activeMatrixSearch = '';
   activeTypeFilter = 'all';
   activeFitFilter = 'all';
-
   if (matrixSearch) matrixSearch.value = '';
   if (matrixTypeFilter) matrixTypeFilter.value = 'all';
   if (matrixFitFilter) matrixFitFilter.value = 'all';
-
   filterButtons.forEach(button => {
     button.classList.toggle('is-active', button.dataset.filter === 'all');
   });
@@ -453,7 +434,7 @@ function resetReportView() {
   renderProposalPageSections([]);
   renderRequirements([]);
   renderAssumptions([]);
-  renderBasicList(reportEvaluationFocus, [], '', 'No evaluation focus available yet.');
+  renderBasicList(reportEvaluationFocus, [], '', 'No evaluation focus yet.');
   renderGaps([]);
   renderResponseOutline([]);
   renderSimpleStringList(reportDetectedSignals, [], 'No detected signals available yet.');
@@ -462,80 +443,51 @@ function resetReportView() {
   renderFeed([]);
 }
 
-function renderReport(report) {
-  if (!report) {
-    resetReportView();
-    openReportButton.disabled = true;
+function renderRoleFiles() {
+  if (!roleFileList) return;
+
+  if (!selectedFiles.length) {
+    roleFileList.innerHTML = '<div class="empty-state-text">No files selected yet.</div>';
     return;
   }
 
-  const summary = report.summary || {};
-  const workflow = report.workflow || {};
-  const diagnostics = report.intakeDiagnostics || {};
+  roleFileList.innerHTML = selectedFiles.map((file, index) => {
+    const role = fileRoles.get(file.name) || getDefaultRole(file);
+    const isMaster = role === 'Functional requirements';
+    return `
+      <div class="role-file-item">
+        <div class="file-meta">
+          <span class="file-name">${escapeHtml(file.name)}</span>
+          <span class="file-info">${escapeHtml(formatBytes(file.size))} · ${escapeHtml(file.type || 'Unknown file type')}</span>
+        </div>
+        <div>
+          <label class="search-shell">
+            <span class="search-label">Document role</span>
+            <select class="role-select" data-role-index="${index}">
+              <option value="Functional requirements" ${role === 'Functional requirements' ? 'selected' : ''}>Functional requirements</option>
+              <option value="Main RFP" ${role === 'Main RFP' ? 'selected' : ''}>Main RFP</option>
+              <option value="Commercial" ${role === 'Commercial' ? 'selected' : ''}>Commercial</option>
+              <option value="Evaluation criteria" ${role === 'Evaluation criteria' ? 'selected' : ''}>Evaluation criteria</option>
+              <option value="Other" ${role === 'Other' ? 'selected' : ''}>Other</option>
+            </select>
+          </label>
+          <div style="margin-top:.65rem;">
+            <span class="role-badge ${isMaster ? 'is-master' : ''}">${isMaster ? 'Requirements master' : 'Supporting file'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
 
-  const documentCount = summary.documentCount || 0;
-  const workstream = summary.workstream || 'Not analyzed';
-  const readiness = summary.readiness || 'Awaiting input';
-
-  reportTitle.textContent = 'Proposal intake report';
-  reportSubtitle.textContent = report.timestamp
-    ? `Generated ${new Date(report.timestamp).toLocaleString()}`
-    : 'Generated from the current analysis run.';
-  reportStatusBadge.textContent = 'Report generated';
-
-  reportWorkflowPattern.textContent = workflow.pattern || 'Sequential analysis pipeline';
-  reportWorkflowStages.textContent = Array.isArray(workflow.stages) && workflow.stages.length
-    ? workflow.stages.join(' → ')
-    : 'No workflow stages available.';
-
-  reportDocCount.textContent = `${documentCount} file${documentCount === 1 ? '' : 's'}`;
-  reportWorkstream.textContent = workstream;
-  reportReadiness.textContent = readiness;
-  reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
-
-  renderKpis(report.requirements || []);
-  renderBasicList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
-  renderBasicList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
-  renderBasicList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
-  renderCatalogMatches(report.catalogMatches || []);
-  renderProposalPageSections(report.proposalPageSections || []);
-  renderRequirements(report.requirements || []);
-  renderAssumptions(report.assumptions || []);
-  renderBasicList(reportEvaluationFocus, report.evaluationFocus || [], '', 'No evaluation focus available yet.');
-  renderGaps(report.gaps || []);
-  renderResponseOutline(report.responseOutline || []);
-  renderSimpleStringList(reportDetectedSignals, diagnostics.detectedSignals || [], 'No detected signals available yet.');
-  renderSimpleStringList(reportMissingSignals, diagnostics.missingSignals || [], 'No missing signals available yet.');
-  renderComplianceMatrix(report.complianceMatrix || []);
-  renderFeed(report.feed || []);
-
-  openReportButton.disabled = false;
-}
-
-async function loadApiMessage() {
-  if (!apiStatusTitle || !apiMessage) return;
-
-  apiStatusTitle.textContent = 'Checking connection...';
-  apiMessage.textContent = 'Trying to load message from Azure Functions.';
-
-  try {
-    const response = await fetch('/api/message');
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    apiStatusTitle.textContent = 'Connected to API';
-    apiMessage.textContent = data.message
-      ? `${data.message}${data.timestamp ? ` (${data.timestamp})` : ''}`
-      : 'API responded successfully, but no message field was returned.';
-  } catch (error) {
-    apiStatusTitle.textContent = 'API unavailable';
-    apiMessage.textContent = 'Could not load message from /api/message';
-    console.error('API error:', error);
-  }
+  roleFileList.querySelectorAll('.role-select').forEach(select => {
+    select.addEventListener('change', event => {
+      const idx = Number(event.target.dataset.roleIndex);
+      const file = selectedFiles[idx];
+      if (file) fileRoles.set(file.name, event.target.value);
+      renderFiles();
+      renderRoleFiles();
+    });
+  });
 }
 
 function renderFiles() {
@@ -549,7 +501,8 @@ function renderFiles() {
     statusTitle.textContent = 'Waiting for files';
     statusText.textContent = 'No files selected yet.';
     suggestedNextStepTitle.textContent = 'Upload sample RFP material';
-    suggestedNextStepText.textContent = 'Select one or more files and run an analysis to preview the experience.';
+    suggestedNextStepText.textContent = 'Select one or more files, assign roles, and run an analysis to preview the experience.';
+    renderRoleFiles();
     return;
   }
 
@@ -558,25 +511,29 @@ function renderFiles() {
 
   statusTitle.textContent = 'Files ready';
   statusText.textContent = `${selectedFiles.length} file(s) loaded and ready for analysis.`;
-  suggestedNextStepTitle.textContent = 'Run analysis';
-  suggestedNextStepText.textContent = 'Send file metadata to the backend to generate a structured proposal intake report.';
+  suggestedNextStepTitle.textContent = 'Assign document roles';
+  suggestedNextStepText.textContent = 'Mark the Excel file containing functional requirements as the master source before analyzing.';
 
   selectedFiles.forEach(file => {
     const item = document.createElement('div');
     item.className = 'file-item';
+    const role = fileRoles.get(file.name) || getDefaultRole(file);
     item.innerHTML = `
       <div class="file-meta">
         <span class="file-name">${escapeHtml(file.name)}</span>
         <span class="file-info">${escapeHtml(formatBytes(file.size))} · ${escapeHtml(file.type || 'Unknown file type')}</span>
       </div>
-      <span class="file-tag">${escapeHtml(getExtension(file.name))}</span>
+      <span class="file-tag">${escapeHtml(getExtension(file.name))} · ${escapeHtml(role)}</span>
     `;
     fileList.appendChild(item);
   });
+
+  renderRoleFiles();
 }
 
 function setFiles(fileCollection) {
   selectedFiles = Array.from(fileCollection);
+  fileRoles = new Map(selectedFiles.map(file => [file.name, getDefaultRole(file)]));
   renderFiles();
 }
 
@@ -604,7 +561,8 @@ async function runAnalysis() {
       files: selectedFiles.map(file => ({
         name: file.name,
         size: file.size,
-        type: file.type || ''
+        type: file.type || '',
+        role: fileRoles.get(file.name) || getDefaultRole(file)
       }))
     };
 
@@ -633,7 +591,7 @@ async function runAnalysis() {
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The backend returned a structured analysis summary.';
     suggestedNextStepTitle.textContent = 'Open report';
-    suggestedNextStepText.textContent = 'Review the full analysis report, including richer requirement fields, process mapping and fit/gap signals.';
+    suggestedNextStepText.textContent = 'Review the full analysis report, including roles, process mapping and fit/gap signals.';
     openReportButton.disabled = false;
   } catch (error) {
     statusTitle.textContent = 'Analysis failed';
@@ -651,6 +609,7 @@ async function runAnalysis() {
 
 function clearFiles() {
   selectedFiles = [];
+  fileRoles = new Map();
   fileInput.value = '';
   latestReport = null;
   setLoading(false);
@@ -715,27 +674,21 @@ if (backToWorkspaceLink) {
 if (matrixSearch) {
   matrixSearch.addEventListener('input', event => {
     activeMatrixSearch = event.target.value.trim();
-    if (latestReport) {
-      renderComplianceMatrix(latestReport.complianceMatrix || []);
-    }
+    if (latestReport) renderComplianceMatrix(latestReport.complianceMatrix || []);
   });
 }
 
 if (matrixTypeFilter) {
   matrixTypeFilter.addEventListener('change', event => {
     activeTypeFilter = event.target.value;
-    if (latestReport) {
-      renderComplianceMatrix(latestReport.complianceMatrix || []);
-    }
+    if (latestReport) renderComplianceMatrix(latestReport.complianceMatrix || []);
   });
 }
 
 if (matrixFitFilter) {
   matrixFitFilter.addEventListener('change', event => {
     activeFitFilter = event.target.value;
-    if (latestReport) {
-      renderComplianceMatrix(latestReport.complianceMatrix || []);
-    }
+    if (latestReport) renderComplianceMatrix(latestReport.complianceMatrix || []);
   });
 }
 
