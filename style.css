@@ -43,7 +43,8 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -485,18 +486,29 @@ select {
   align-items: center;
 }
 
-.role-select {
+.role-select,
+.cell-input,
+.cell-select,
+.cell-textarea {
   width: 100%;
-  min-height: 46px;
-  border-radius: 14px;
+  min-height: 42px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
-  padding: 0 0.9rem;
+  padding: 0.55rem 0.75rem;
   outline: none;
 }
 
-.role-select:focus {
+.cell-textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.role-select:focus,
+.cell-input:focus,
+.cell-select:focus,
+.cell-textarea:focus {
   border-color: rgba(79, 140, 255, 0.5);
   box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.1);
 }
@@ -624,10 +636,6 @@ select {
   outline: none;
 }
 
-.filter-field-wide {
-  grid-column: span 1;
-}
-
 .table-shell {
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -636,7 +644,7 @@ select {
 
 .compliance-table {
   width: 100%;
-  min-width: 1400px;
+  min-width: 2200px;
   border-collapse: collapse;
   background: rgba(255, 255, 255, 0.02);
 }
@@ -678,14 +686,16 @@ select {
 
 .badge-status-detected,
 .badge-fit-standard-fit,
-.badge-confidence-high {
+.badge-confidence-high,
+.badge-review-reviewed {
   background: rgba(52, 211, 153, 0.14);
   color: #9bf0c3;
 }
 
 .badge-status-assumed,
 .badge-fit-configuration-fit,
-.badge-confidence-medium {
+.badge-confidence-medium,
+.badge-review-in-progress {
   background: rgba(245, 158, 11, 0.14);
   color: #ffd388;
 }
@@ -693,13 +703,15 @@ select {
 .badge-status-gap,
 .badge-fit-integration-gap,
 .badge-fit-extension-gap,
-.badge-confidence-low {
+.badge-confidence-low,
+.badge-review-blocked {
   background: rgba(248, 113, 113, 0.14);
   color: #ffb4b4;
 }
 
 .badge-status-needs-review,
-.badge-fit-unclear {
+.badge-fit-unclear,
+.badge-review-not-started {
   background: rgba(148, 163, 184, 0.14);
   color: #d5deea;
 }
