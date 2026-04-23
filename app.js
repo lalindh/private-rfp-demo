@@ -1,21 +1,35 @@
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const analyzeButton = document.getElementById('analyze-button');
+const openReportButton = document.getElementById('open-report-button');
 const clearButton = document.getElementById('clear-button');
 const fileList = document.getElementById('file-list');
 
 const statusTitle = document.getElementById('status-title');
 const statusText = document.getElementById('status-text');
+const suggestedNextStepTitle = document.getElementById('suggested-next-step-title');
+const suggestedNextStepText = document.getElementById('suggested-next-step-text');
 
 const apiStatusTitle = document.getElementById('api-status-title');
 const apiMessage = document.getElementById('api-message');
 
-const resultDocCount = document.getElementById('result-doc-count');
-const resultWorkstream = document.getElementById('result-workstream');
-const resultReadiness = document.getElementById('result-readiness');
+const workspaceView = document.getElementById('workspace-view');
+const reportView = document.getElementById('report-view');
+
+const reportTitle = document.getElementById('report-title');
+const reportSubtitle = document.getElementById('report-subtitle');
+const reportDocCount = document.getElementById('report-doc-count');
+const reportWorkstream = document.getElementById('report-workstream');
+const reportReadiness = document.getElementById('report-readiness');
+const reportExecutiveSummary = document.getElementById('report-executive-summary');
+const reportScopeSignals = document.getElementById('report-scope-signals');
+const reportRiskFlags = document.getElementById('report-risk-flags');
+const reportRecommendedActions = document.getElementById('report-recommended-actions');
 const analysisFeed = document.getElementById('analysis-feed');
+const backToWorkspaceLink = document.getElementById('back-to-workspace-link');
 
 let selectedFiles = [];
+let latestReport = null;
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -26,6 +40,104 @@ function formatBytes(bytes) {
 function getExtension(name) {
   const parts = name.split('.');
   return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
+}
+
+function renderView() {
+  const isReportRoute = window.location.pathname === '/report';
+  workspaceView.classList.toggle('hidden', isReportRoute);
+  reportView.classList.toggle('hidden', !isReportRoute);
+}
+
+function goToReport() {
+  window.history.pushState({}, '', '/report');
+  renderView();
+}
+
+function goToWorkspace() {
+  window.history.pushState({}, '', '/');
+  renderView();
+}
+
+function renderSignalList(container, items, variant) {
+  if (!container) return;
+
+  if (!items || !items.length) {
+    container.innerHTML = '<div class="empty-state-text">No items available.</div>';
+    return;
+  }
+
+  container.innerHTML = items.map(item => `
+    <div class="signal-item ${variant ? `signal-item-${variant}` : ''}">
+      <strong>${item.title || 'Untitled'}</strong>
+      <p>${item.text || ''}</p>
+    </div>
+  `).join('');
+}
+
+function renderFeed(feed) {
+  if (!analysisFeed) return;
+
+  if (!feed || !feed.length) {
+    analysisFeed.innerHTML = `
+      <div class="feed-item">
+        <div class="feed-dot"></div>
+        <div>
+          <strong>Report not generated</strong>
+          <p>Return to the workspace and run an analysis to populate this view.</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  analysisFeed.innerHTML = feed.map(item => `
+    <div class="feed-item">
+      <div class="feed-dot"></div>
+      <div>
+        <strong>${item.title || 'Update'}</strong>
+        <p>${item.text || ''}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderReport(report) {
+  if (!report) {
+    reportTitle.textContent = 'Proposal intake report';
+    reportSubtitle.textContent = 'Run an analysis from the workspace to generate a structured report.';
+    reportDocCount.textContent = '0 files';
+    reportWorkstream.textContent = 'Not analyzed';
+    reportReadiness.textContent = 'Awaiting input';
+    reportExecutiveSummary.textContent = 'No report has been generated yet.';
+    renderSignalList(reportScopeSignals, []);
+    renderSignalList(reportRiskFlags, [], 'risk');
+    renderSignalList(reportRecommendedActions, [], 'action');
+    renderFeed([]);
+    openReportButton.disabled = true;
+    return;
+  }
+
+  const summary = report.summary || {};
+  const documentCount = summary.documentCount || 0;
+  const workstream = summary.workstream || 'Not analyzed';
+  const readiness = summary.readiness || 'Awaiting input';
+
+  reportTitle.textContent = 'Proposal intake report';
+  reportSubtitle.textContent = report.timestamp
+    ? `Generated ${new Date(report.timestamp).toLocaleString()}`
+    : 'Generated from the current analysis run.';
+
+  reportDocCount.textContent = `${documentCount} file${documentCount === 1 ? '' : 's'}`;
+  reportWorkstream.textContent = workstream;
+  reportReadiness.textContent = readiness;
+  reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
+
+  renderSignalList(reportScopeSignals, report.scopeSignals || []);
+  renderSignalList(reportRiskFlags, report.riskFlags || [], 'risk');
+  renderSignalList(reportRecommendedActions, report.recommendedActions || [], 'action');
+  renderFeed(report.feed || []);
+
+  openReportButton.disabled = false;
 }
 
 async function loadApiMessage() {
@@ -60,30 +172,22 @@ function renderFiles() {
   if (!selectedFiles.length) {
     analyzeButton.disabled = true;
     clearButton.disabled = true;
+    openReportButton.disabled = !latestReport;
+
     statusTitle.textContent = 'Waiting for files';
     statusText.textContent = 'No files selected yet.';
-    resultDocCount.textContent = '0 files';
-    resultWorkstream.textContent = 'Not analyzed';
-    resultReadiness.textContent = 'Awaiting input';
-    analysisFeed.innerHTML = `
-      <div class="feed-item">
-        <div class="feed-dot"></div>
-        <div>
-          <strong>Demo not started</strong>
-          <p>Upload one or more files to activate the analysis workflow.</p>
-        </div>
-      </div>
-    `;
+    suggestedNextStepTitle.textContent = 'Upload sample RFP material';
+    suggestedNextStepText.textContent = 'Select one or more files and run an analysis to preview the experience.';
     return;
   }
 
   analyzeButton.disabled = false;
   clearButton.disabled = false;
+
   statusTitle.textContent = 'Files ready';
   statusText.textContent = `${selectedFiles.length} file(s) loaded and ready for analysis.`;
-  resultDocCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
-  resultWorkstream.textContent = 'Pending review';
-  resultReadiness.textContent = 'Input received';
+  suggestedNextStepTitle.textContent = 'Run analysis';
+  suggestedNextStepText.textContent = 'Send file metadata to the backend to generate a structured proposal intake report.';
 
   selectedFiles.forEach(file => {
     const item = document.createElement('div');
@@ -97,16 +201,6 @@ function renderFiles() {
     `;
     fileList.appendChild(item);
   });
-
-  analysisFeed.innerHTML = `
-    <div class="feed-item">
-      <div class="feed-dot"></div>
-      <div>
-        <strong>Files added</strong>
-        <p>The workspace is ready for a backend analysis request.</p>
-      </div>
-    </div>
-  `;
 }
 
 function setFiles(fileCollection) {
@@ -121,17 +215,8 @@ async function runAnalysis() {
   statusText.textContent = 'Sending selected file metadata to the analysis API...';
   analyzeButton.disabled = true;
   clearButton.disabled = true;
+  openReportButton.disabled = true;
   analyzeButton.textContent = 'Analyzing...';
-
-  analysisFeed.innerHTML = `
-    <div class="feed-item">
-      <div class="feed-dot"></div>
-      <div>
-        <strong>Analysis started</strong>
-        <p>The backend is reviewing file metadata and preparing a structured response.</p>
-      </div>
-    </div>
-  `;
 
   try {
     const payload = {
@@ -160,33 +245,19 @@ async function runAnalysis() {
       throw new Error(data.message || 'Analysis failed.');
     }
 
+    latestReport = data;
+    renderReport(latestReport);
+
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The backend returned a structured analysis summary.';
-    resultDocCount.textContent = `${data.summary.documentCount} file${data.summary.documentCount > 1 ? 's' : ''}`;
-    resultWorkstream.textContent = data.summary.workstream;
-    resultReadiness.textContent = data.summary.readiness;
-
-    analysisFeed.innerHTML = data.feed.map(item => `
-      <div class="feed-item">
-        <div class="feed-dot"></div>
-        <div>
-          <strong>${item.title}</strong>
-          <p>${item.text}</p>
-        </div>
-      </div>
-    `).join('');
+    suggestedNextStepTitle.textContent = 'Open report';
+    suggestedNextStepText.textContent = 'Review the full analysis report in a dedicated report view.';
+    openReportButton.disabled = false;
   } catch (error) {
     statusTitle.textContent = 'Analysis failed';
     statusText.textContent = 'The analysis API could not process the request.';
-    analysisFeed.innerHTML = `
-      <div class="feed-item">
-        <div class="feed-dot"></div>
-        <div>
-          <strong>Analysis error</strong>
-          <p>${error.message}</p>
-        </div>
-      </div>
-    `;
+    suggestedNextStepTitle.textContent = 'Check backend response';
+    suggestedNextStepText.textContent = error.message;
     console.error('Analyze error:', error);
   } finally {
     analyzeButton.disabled = !selectedFiles.length;
@@ -198,8 +269,10 @@ async function runAnalysis() {
 function clearFiles() {
   selectedFiles = [];
   fileInput.value = '';
-  analyzeButton.textContent = 'Analyze files';
+  latestReport = null;
   renderFiles();
+  renderReport(null);
+  goToWorkspace();
 }
 
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -244,7 +317,19 @@ fileInput.addEventListener('change', event => {
 });
 
 analyzeButton.addEventListener('click', runAnalysis);
+openReportButton.addEventListener('click', goToReport);
 clearButton.addEventListener('click', clearFiles);
 
+if (backToWorkspaceLink) {
+  backToWorkspaceLink.addEventListener('click', event => {
+    event.preventDefault();
+    goToWorkspace();
+  });
+}
+
+window.addEventListener('popstate', renderView);
+
 renderFiles();
+renderReport(null);
+renderView();
 loadApiMessage();
