@@ -45,8 +45,18 @@ const reportComplianceMatrix = document.getElementById('report-compliance-matrix
 const analysisFeed = document.getElementById('analysis-feed');
 const backToWorkspaceLink = document.getElementById('back-to-workspace-link');
 
+const kpiDetected = document.getElementById('kpi-detected');
+const kpiAssumed = document.getElementById('kpi-assumed');
+const kpiGap = document.getElementById('kpi-gap');
+const kpiNeedsReview = document.getElementById('kpi-needs-review');
+
+const matrixSearch = document.getElementById('matrix-search');
+const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+
 let selectedFiles = [];
 let latestReport = null;
+let activeMatrixFilter = 'all';
+let activeMatrixSearch = '';
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -236,21 +246,46 @@ function complianceBadgeClass(value) {
   return `badge badge-yn-${normalized}`;
 }
 
+function getFilteredComplianceItems(items) {
+  return (items || []).filter(item => {
+    const matchesFilter =
+      activeMatrixFilter === 'all' || item.status === activeMatrixFilter;
+
+    const searchHaystack = [
+      item.requirementId,
+      item.requirementTitle,
+      item.requirementText,
+      item.owner,
+      item.proposalSection,
+      item.responseAction,
+      item.priority,
+      item.status
+    ].join(' ').toLowerCase();
+
+    const matchesSearch =
+      !activeMatrixSearch || searchHaystack.includes(activeMatrixSearch.toLowerCase());
+
+    return matchesFilter && matchesSearch;
+  });
+}
+
 function renderComplianceMatrix(items) {
   if (!reportComplianceMatrix) return;
 
-  if (!items || !items.length) {
+  const filteredItems = getFilteredComplianceItems(items);
+
+  if (!filteredItems.length) {
     reportComplianceMatrix.innerHTML = `
       <tr>
         <td colspan="8">
-          <div class="empty-state-text">No compliance matrix available yet.</div>
+          <div class="empty-state-text">No compliance rows match the current filter or search.</div>
         </td>
       </tr>
     `;
     return;
   }
 
-  reportComplianceMatrix.innerHTML = items.map(item => `
+  reportComplianceMatrix.innerHTML = filteredItems.map(item => `
     <tr>
       <td><strong>${escapeHtml(item.requirementId || item.rowId || '')}</strong></td>
       <td>
@@ -294,6 +329,52 @@ function renderFeed(feed) {
   `).join('');
 }
 
+function renderKpis(requirements) {
+  const counts = {
+    detected: 0,
+    assumed: 0,
+    gap: 0,
+    needsReview: 0
+  };
+
+  (requirements || []).forEach(item => {
+    if (item.status === 'Detected') counts.detected += 1;
+    if (item.status === 'Assumed') counts.assumed += 1;
+    if (item.status === 'Gap') counts.gap += 1;
+    if (item.status === 'Needs review') counts.needsReview += 1;
+  });
+
+  kpiDetected.textContent = counts.detected;
+  kpiAssumed.textContent = counts.assumed;
+  kpiGap.textContent = counts.gap;
+  kpiNeedsReview.textContent = counts.needsReview;
+}
+
+function setActiveFilter(filterValue) {
+  activeMatrixFilter = filterValue;
+
+  filterButtons.forEach(button => {
+    button.classList.toggle('is-active', button.dataset.filter === filterValue);
+  });
+
+  if (latestReport) {
+    renderComplianceMatrix(latestReport.complianceMatrix || []);
+  }
+}
+
+function resetWorkspaceControls() {
+  activeMatrixFilter = 'all';
+  activeMatrixSearch = '';
+
+  if (matrixSearch) {
+    matrixSearch.value = '';
+  }
+
+  filterButtons.forEach(button => {
+    button.classList.toggle('is-active', button.dataset.filter === 'all');
+  });
+}
+
 function resetReportView() {
   reportTitle.textContent = 'Proposal intake report';
   reportSubtitle.textContent = 'Run an analysis from the workspace to generate a structured report.';
@@ -305,6 +386,7 @@ function resetReportView() {
   reportReadiness.textContent = 'Awaiting input';
   reportExecutiveSummary.textContent = 'No report has been generated yet.';
 
+  renderKpis([]);
   renderBasicList(reportScopeSignals, [], '', 'No scope signals yet.');
   renderBasicList(reportRiskFlags, [], 'risk', 'No risk flags yet.');
   renderBasicList(reportRecommendedActions, [], 'action', 'No actions available yet.');
@@ -352,6 +434,7 @@ function renderReport(report) {
   reportReadiness.textContent = readiness;
   reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
 
+  renderKpis(report.requirements || []);
   renderBasicList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
   renderBasicList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
   renderBasicList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
@@ -485,12 +568,13 @@ async function runAnalysis() {
     }
 
     latestReport = data;
+    resetWorkspaceControls();
     renderReport(latestReport);
 
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The backend returned a structured analysis summary.';
     suggestedNextStepTitle.textContent = 'Open report';
-    suggestedNextStepText.textContent = 'Review the full analysis report, including compliance tracking, gaps, and the proposed response structure.';
+    suggestedNextStepText.textContent = 'Review the full analysis report, including KPI summary, compliance tracking, gaps, and the proposed response structure.';
     openReportButton.disabled = false;
   } catch (error) {
     statusTitle.textContent = 'Analysis failed';
@@ -511,6 +595,7 @@ function clearFiles() {
   fileInput.value = '';
   latestReport = null;
   setLoading(false);
+  resetWorkspaceControls();
   renderFiles();
   renderReport(null);
   goToWorkspace();
@@ -568,8 +653,24 @@ if (backToWorkspaceLink) {
   });
 }
 
+if (matrixSearch) {
+  matrixSearch.addEventListener('input', event => {
+    activeMatrixSearch = event.target.value.trim();
+    if (latestReport) {
+      renderComplianceMatrix(latestReport.complianceMatrix || []);
+    }
+  });
+}
+
+filterButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    setActiveFilter(button.dataset.filter);
+  });
+});
+
 window.addEventListener('popstate', renderView);
 
+resetWorkspaceControls();
 renderFiles();
 renderReport(null);
 renderView();
