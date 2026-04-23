@@ -12,126 +12,174 @@
   <a class="skip-link" href="#main">Skip to content</a>
 
   <main id="main" class="page">
-    <section class="hero">
-      <p class="eyebrow">Cepheo proposal platform</p>
-      <h1>Build better RFP responses and proposal pages</h1>
-      <p class="lede">
-        A lightweight Microsoft-based platform for turning complex RFx material into structured responses and polished customer-facing pages.
-      </p>
-      <div class="actions">
-        <a class="button button-primary" href="#upload">Start demo</a>
-        <a class="button button-secondary" href="#workflow">How it works</a>
-      </div>
-    </section>
-
-    <section id="upload" class="feature-shell">
-      <div class="section-heading">
-        <p class="section-label">Demo flow</p>
-        <h2>Upload an RFP package</h2>
-        <p>
-          Use drag and drop or browse for files. This demo simulates the intake and review experience for proposal teams.
+    <section id="workspace-view" class="app-view">
+      <section class="hero">
+        <p class="eyebrow">Cepheo proposal platform</p>
+        <h1>Build better RFP responses and proposal pages</h1>
+        <p class="lede">
+          A lightweight Microsoft-based platform for turning complex RFx material into structured responses and polished customer-facing pages.
         </p>
-      </div>
+        <div class="actions">
+          <a class="button button-primary" href="#upload">Start demo</a>
+          <a class="button button-secondary" href="#workflow">How it works</a>
+        </div>
+      </section>
 
-      <div class="upload-layout">
-        <div
-          id="drop-zone"
-          class="drop-zone"
-          tabindex="0"
-          role="button"
-          aria-label="Upload files by dragging them here or browsing from your computer"
-        >
-          <input id="file-input" class="file-input" type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt" />
-          <div class="drop-icon">+</div>
-          <h3>Drop files here</h3>
-          <p>or click to browse from your device</p>
-          <span class="drop-note">Supported demo formats: PDF, Word, PowerPoint, Excel, TXT</span>
+      <section id="upload" class="feature-shell">
+        <div class="section-heading">
+          <p class="section-label">Demo flow</p>
+          <h2>Upload an RFP package</h2>
+          <p>
+            Use drag and drop or browse for files. This demo simulates the intake and review experience for proposal teams.
+          </p>
         </div>
 
-        <aside class="status-panel">
-          <div class="status-card">
-            <span class="status-label">Current state</span>
-            <strong id="status-title">Waiting for files</strong>
-            <p id="status-text">No files selected yet.</p>
+        <div class="upload-layout">
+          <div
+            id="drop-zone"
+            class="drop-zone"
+            tabindex="0"
+            role="button"
+            aria-label="Upload files by dragging them here or browsing from your computer"
+          >
+            <input id="file-input" class="file-input" type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt" />
+            <div class="drop-icon">+</div>
+            <h3>Drop files here</h3>
+            <p>or click to browse from your device</p>
+            <span class="drop-note">Supported demo formats: PDF, Word, PowerPoint, Excel, TXT</span>
           </div>
 
-          <div class="status-card">
-            <span class="status-label">API status</span>
-            <strong id="api-status-title">Checking connection...</strong>
-            <p id="api-message">Trying to load message from Azure Functions.</p>
-          </div>
+          <aside class="status-panel">
+            <div class="status-card">
+              <span class="status-label">Current state</span>
+              <strong id="status-title">Waiting for files</strong>
+              <p id="status-text">No files selected yet.</p>
+            </div>
 
-          <div class="status-card">
-            <span class="status-label">Suggested next step</span>
-            <strong>Upload sample RFP material</strong>
-            <p>Select one or more files and run a mock analysis to preview the experience.</p>
-          </div>
-        </aside>
-      </div>
+            <div class="status-card">
+              <span class="status-label">API status</span>
+              <strong id="api-status-title">Checking connection...</strong>
+              <p id="api-message">Trying to load message from Azure Functions.</p>
+            </div>
 
-      <div class="toolbar">
-        <button id="analyze-button" class="button button-primary" disabled>Analyze files</button>
-        <button id="clear-button" class="button button-secondary" disabled>Clear selection</button>
-      </div>
+            <div class="status-card">
+              <span class="status-label">Suggested next step</span>
+              <strong id="suggested-next-step-title">Upload sample RFP material</strong>
+              <p id="suggested-next-step-text">Select one or more files and run an analysis to preview the experience.</p>
+            </div>
+          </aside>
+        </div>
 
-      <div id="file-list" class="file-list" aria-live="polite"></div>
+        <div class="toolbar">
+          <button id="analyze-button" class="button button-primary" disabled>Analyze files</button>
+          <button id="open-report-button" class="button button-secondary" disabled>Open report</button>
+          <button id="clear-button" class="button button-secondary" disabled>Clear selection</button>
+        </div>
+
+        <div id="file-list" class="file-list" aria-live="polite"></div>
+      </section>
+
+      <section id="workflow" class="grid">
+        <article class="card">
+          <h2>1. Intake</h2>
+          <p>Collect source documents, requirements, and supporting material from the opportunity team.</p>
+        </article>
+
+        <article class="card">
+          <h2>2. Review</h2>
+          <p>Surface the uploaded content, identify scope signals, and prepare a structured response draft.</p>
+        </article>
+
+        <article class="card">
+          <h2>3. Publish</h2>
+          <p>Turn approved content into a clean proposal page that can be reviewed internally or shared with the customer.</p>
+        </article>
+      </section>
     </section>
 
-    <section id="workflow" class="grid">
-      <article class="card">
-        <h2>1. Intake</h2>
-        <p>Collect source documents, requirements, and supporting material from the opportunity team.</p>
-      </article>
-
-      <article class="card">
-        <h2>2. Review</h2>
-        <p>Surface the uploaded content, identify scope signals, and prepare a structured response draft.</p>
-      </article>
-
-      <article class="card">
-        <h2>3. Publish</h2>
-        <p>Turn approved content into a clean proposal page that can be reviewed internally or shared with the customer.</p>
-      </article>
-    </section>
-
-    <section id="results" class="panel results-panel">
-      <div class="section-heading">
-        <p class="section-label">Output preview</p>
-        <h2>Mock analysis summary</h2>
-        <p>
-          This section updates when you run the demo analysis. It helps visualize what the future solution could surface for sellers and consultants.
-        </p>
-      </div>
-
-      <div class="results-grid">
-        <article class="result-card">
-          <span class="status-label">Documents</span>
-          <strong id="result-doc-count">0 files</strong>
-          <p>Files currently loaded into the demo flow.</p>
-        </article>
-
-        <article class="result-card">
-          <span class="status-label">Detected workstream</span>
-          <strong id="result-workstream">Not analyzed</strong>
-          <p>Mock categorization based on uploaded file names and extensions.</p>
-        </article>
-
-        <article class="result-card">
-          <span class="status-label">Proposal readiness</span>
-          <strong id="result-readiness">Awaiting input</strong>
-          <p>Simple readiness signal for the demo experience.</p>
-        </article>
-      </div>
-
-      <div id="analysis-feed" class="analysis-feed" aria-live="polite">
-        <div class="feed-item">
-          <div class="feed-dot"></div>
-          <div>
-            <strong>Demo not started</strong>
-            <p>Upload one or more files to activate the mock workflow.</p>
-          </div>
+    <section id="report-view" class="app-view hidden">
+      <div class="report-header panel">
+        <div class="report-header-copy">
+          <p class="section-label">Analysis report</p>
+          <h2 id="report-title">Proposal intake report</h2>
+          <p id="report-subtitle">Run an analysis from the workspace to generate a structured report.</p>
+        </div>
+        <div class="report-header-actions">
+          <a class="button button-secondary" href="/" id="back-to-workspace-link">Back to workspace</a>
         </div>
       </div>
+
+      <section class="panel report-panel">
+        <div class="report-summary-grid">
+          <article class="result-card">
+            <span class="status-label">Documents</span>
+            <strong id="report-doc-count">0 files</strong>
+            <p>Files included in the current analysis run.</p>
+          </article>
+
+          <article class="result-card">
+            <span class="status-label">Detected workstream</span>
+            <strong id="report-workstream">Not analyzed</strong>
+            <p>Current categorization based on uploaded material.</p>
+          </article>
+
+          <article class="result-card">
+            <span class="status-label">Proposal readiness</span>
+            <strong id="report-readiness">Awaiting input</strong>
+            <p>Readiness estimate for the next proposal step.</p>
+          </article>
+        </div>
+
+        <div class="report-body-grid">
+          <article class="report-block">
+            <span class="status-label">Executive summary</span>
+            <h3>Summary</h3>
+            <p id="report-executive-summary">No report has been generated yet.</p>
+          </article>
+
+          <article class="report-block">
+            <span class="status-label">Scope signals</span>
+            <h3>Detected signals</h3>
+            <div id="report-scope-signals" class="signal-list">
+              <div class="empty-state-text">No scope signals yet.</div>
+            </div>
+          </article>
+
+          <article class="report-block">
+            <span class="status-label">Risk flags</span>
+            <h3>Review attention points</h3>
+            <div id="report-risk-flags" class="signal-list">
+              <div class="empty-state-text">No risk flags yet.</div>
+            </div>
+          </article>
+
+          <article class="report-block">
+            <span class="status-label">Recommended actions</span>
+            <h3>Suggested next actions</h3>
+            <div id="report-recommended-actions" class="signal-list">
+              <div class="empty-state-text">No actions available yet.</div>
+            </div>
+          </article>
+        </div>
+
+        <div class="report-timeline">
+          <div class="section-heading report-section-heading">
+            <p class="section-label">Analysis timeline</p>
+            <h2>Processing notes</h2>
+            <p>Structured activity log returned by the analysis API.</p>
+          </div>
+
+          <div id="analysis-feed" class="analysis-feed" aria-live="polite">
+            <div class="feed-item">
+              <div class="feed-dot"></div>
+              <div>
+                <strong>Report not generated</strong>
+                <p>Return to the workspace and run an analysis to populate this view.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </section>
   </main>
 
