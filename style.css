@@ -66,7 +66,7 @@ button{
 }
 
 .page{
-  width:min(1180px,calc(100% - 2rem));
+  width:min(1240px,calc(100% - 2rem));
   margin:0 auto;
   padding:clamp(1.5rem,4vw,4rem) 0 4rem;
 }
@@ -602,6 +602,97 @@ button{
 
 .diagnostic-card{
   min-height:100%;
+}
+
+.matrix-shell{
+  margin-top:.5rem;
+}
+
+.matrix-scroll{
+  overflow:auto;
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+}
+
+.compliance-table{
+  width:100%;
+  min-width:980px;
+  border-collapse:collapse;
+  background:rgba(255,255,255,.02);
+}
+
+.compliance-table th,
+.compliance-table td{
+  text-align:left;
+  vertical-align:top;
+  padding:.9rem .85rem;
+  border-bottom:1px solid var(--border);
+  font-size:.95rem;
+}
+
+.compliance-table th{
+  position:sticky;
+  top:0;
+  background:var(--surface-3);
+  color:var(--accent-2);
+  font-size:.82rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.compliance-table td{
+  color:var(--muted);
+}
+
+.compliance-table td strong{
+  color:var(--text);
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:.32rem .55rem;
+  border-radius:999px;
+  font-size:.78rem;
+  font-weight:700;
+  letter-spacing:.02em;
+  white-space:nowrap;
+}
+
+.badge-status-detected{
+  background:rgba(99,211,156,.14);
+  color:#9bf0c3;
+}
+
+.badge-status-assumed{
+  background:rgba(122,162,255,.14);
+  color:#9fbaff;
+}
+
+.badge-status-gap{
+  background:rgba(255,142,142,.14);
+  color:#ffb3b3;
+}
+
+.badge-status-needs-review{
+  background:rgba(240,195,106,.14);
+  color:#ffd68a;
+}
+
+.badge-yn-y{
+  background:rgba(99,211,156,.14);
+  color:#9bf0c3;
+}
+
+.badge-yn-p{
+  background:rgba(240,195,106,.14);
+  color:#ffd68a;
+}
+
+.badge-yn-n{
+  background:rgba(255,142,142,.14);
+  color:#ffb3b3;
 }
 
 @keyframes spin{
