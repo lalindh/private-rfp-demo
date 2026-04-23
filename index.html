@@ -17,7 +17,7 @@
         <p class="eyebrow">Cepheo proposal platform</p>
         <h1>Build better RFP responses and proposal pages</h1>
         <p class="lede">
-          A lightweight Microsoft-based platform for turning complex RFx material into structured responses and polished customer-facing pages.
+          A lightweight Microsoft-based platform for turning RFx material into structured requirement analysis, process-aligned scope insight and proposal-ready response workspaces.
         </p>
         <div class="actions">
           <a class="button button-primary" href="#upload">Start demo</a>
@@ -30,7 +30,7 @@
           <p class="section-label">Demo flow</p>
           <h2>Upload an RFP package</h2>
           <p>
-            Use drag and drop or browse for files. This demo simulates the intake and review experience for proposal teams.
+            Use drag and drop or browse for files. This demo simulates intake, requirement synthesis, process mapping and proposal workspace preparation.
           </p>
         </div>
 
@@ -87,8 +87,8 @@
 
           <div class="loading-steps">
             <div class="loading-step is-active">Collecting file metadata</div>
-            <div class="loading-step">Sending request to analysis API</div>
-            <div class="loading-step">Generating structured report</div>
+            <div class="loading-step">Synthesizing requirement candidates</div>
+            <div class="loading-step">Mapping requirements to process coverage</div>
           </div>
         </div>
 
@@ -98,17 +98,17 @@
       <section id="workflow" class="grid">
         <article class="card">
           <h2>1. Intake</h2>
-          <p>Collect source documents, requirements, and supporting material from the opportunity team.</p>
+          <p>Collect source documents, instructions, requirements and supporting material from the opportunity team.</p>
         </article>
 
         <article class="card">
-          <h2>2. Review</h2>
-          <p>Surface the uploaded content, identify scope signals, and prepare a structured response draft.</p>
+          <h2>2. Analyze</h2>
+          <p>Generate structured requirements, process mapping, fit/gap insight and review signals.</p>
         </article>
 
         <article class="card">
-          <h2>3. Publish</h2>
-          <p>Turn approved content into a clean proposal page that can be reviewed internally or shared with the customer.</p>
+          <h2>3. Shape</h2>
+          <p>Turn approved scope insight into a response workspace ready for drafting and internal review.</p>
         </article>
       </section>
     </section>
@@ -165,51 +165,51 @@
           <article class="kpi-card">
             <span class="status-label">Detected</span>
             <strong id="kpi-detected">0</strong>
-            <p>Requirements already supported by current intake.</p>
+            <p>Requirements already supported by current analysis.</p>
           </article>
 
           <article class="kpi-card">
             <span class="status-label">Assumed</span>
             <strong id="kpi-assumed">0</strong>
-            <p>Items that likely apply but still need confirmation.</p>
+            <p>Items that look coverable through configuration or clarified scope.</p>
           </article>
 
           <article class="kpi-card">
             <span class="status-label">Gap</span>
             <strong id="kpi-gap">0</strong>
-            <p>Requirements or signals that need more evidence.</p>
+            <p>Rows that suggest extension or integration needs.</p>
           </article>
 
           <article class="kpi-card">
             <span class="status-label">Needs review</span>
             <strong id="kpi-needs-review">0</strong>
-            <p>Items that should be reviewed before drafting continues.</p>
+            <p>Rows where classification confidence is still too weak.</p>
           </article>
         </div>
 
         <div class="workspace-kpis workspace-kpis-secondary">
           <article class="kpi-card">
-            <span class="status-label">Reviewed rows</span>
-            <strong id="kpi-reviewed">0</strong>
-            <p>Rows marked as reviewed by the proposal team.</p>
+            <span class="status-label">Mapped rows</span>
+            <strong id="kpi-mapped">0</strong>
+            <p>Rows with a process area and process match.</p>
           </article>
 
           <article class="kpi-card">
-            <span class="status-label">Due this week</span>
-            <strong id="kpi-due-soon">0</strong>
-            <p>Rows with a due date within the next seven days.</p>
+            <span class="status-label">High confidence</span>
+            <strong id="kpi-high-confidence">0</strong>
+            <p>Rows with stronger process mapping confidence.</p>
           </article>
 
           <article class="kpi-card">
-            <span class="status-label">Overdue</span>
-            <strong id="kpi-overdue">0</strong>
-            <p>Rows with a due date already in the past.</p>
+            <span class="status-label">Unclear mappings</span>
+            <strong id="kpi-unclear">0</strong>
+            <p>Rows that still need manual process classification.</p>
           </article>
 
           <article class="kpi-card">
-            <span class="status-label">Rows with notes</span>
-            <strong id="kpi-notes">0</strong>
-            <p>Rows where internal comments or actions were added.</p>
+            <span class="status-label">Gap rows</span>
+            <strong id="kpi-gap-count">0</strong>
+            <p>Rows that likely need design, extension or integration discussion.</p>
           </article>
         </div>
 
@@ -246,7 +246,7 @@
 
           <article class="report-block">
             <span class="status-label">Catalog alignment</span>
-            <h3>Business Process Catalog matches</h3>
+            <h3>Process catalog matches</h3>
             <div id="report-catalog-matches" class="signal-list">
               <div class="empty-state-text">No catalog matches available yet.</div>
             </div>
@@ -306,12 +306,12 @@
             <span class="status-label">Compliance workspace</span>
             <div class="matrix-header">
               <div>
-                <h3>Requirement tracking view</h3>
-                <p>Use filters, ownership and review details to make the matrix operational for the proposal team.</p>
+                <h3>Requirement and process tracking view</h3>
+                <p>Use filters to review requirement type, fit/gap outcome and Business Process Catalog-style process mapping.</p>
               </div>
             </div>
 
-            <div class="matrix-toolbar">
+            <div class="matrix-toolbar matrix-toolbar-stacked">
               <div class="matrix-filters" role="group" aria-label="Compliance status filters">
                 <button class="filter-chip is-active" data-filter="all" type="button">All</button>
                 <button class="filter-chip" data-filter="Detected" type="button">Detected</button>
@@ -320,33 +320,60 @@
                 <button class="filter-chip" data-filter="Needs review" type="button">Needs review</button>
               </div>
 
-              <label class="search-shell" for="matrix-search">
-                <span class="search-label">Search requirements</span>
-                <input id="matrix-search" class="search-input" type="search" placeholder="Search by requirement, owner, comment or proposal section" />
-              </label>
+              <div class="matrix-subfilters">
+                <label class="search-shell" for="matrix-type-filter">
+                  <span class="search-label">Requirement type</span>
+                  <select id="matrix-type-filter" class="search-input">
+                    <option value="all">All types</option>
+                    <option value="Functional requirement">Functional requirement</option>
+                    <option value="Non-functional requirement">Non-functional requirement</option>
+                    <option value="Commercial requirement">Commercial requirement</option>
+                    <option value="Delivery requirement">Delivery requirement</option>
+                  </select>
+                </label>
+
+                <label class="search-shell" for="matrix-fit-filter">
+                  <span class="search-label">Fit type</span>
+                  <select id="matrix-fit-filter" class="search-input">
+                    <option value="all">All fit types</option>
+                    <option value="Standard fit">Standard fit</option>
+                    <option value="Configuration fit">Configuration fit</option>
+                    <option value="Integration gap">Integration gap</option>
+                    <option value="Extension gap">Extension gap</option>
+                    <option value="Unclear">Unclear</option>
+                  </select>
+                </label>
+
+                <label class="search-shell" for="matrix-search">
+                  <span class="search-label">Search requirements</span>
+                  <input id="matrix-search" class="search-input" type="search" placeholder="Search by requirement, process, fit type or document" />
+                </label>
+              </div>
             </div>
 
             <div class="matrix-shell">
               <div class="matrix-scroll">
-                <table class="compliance-table compliance-table-editable">
+                <table class="compliance-table compliance-table-advanced">
                   <thead>
                     <tr>
                       <th>Req ID</th>
                       <th>Requirement</th>
+                      <th>Type</th>
+                      <th>Mandatory</th>
                       <th>Status</th>
-                      <th>Priority</th>
-                      <th>Compliance</th>
-                      <th>Owner</th>
-                      <th>Proposal section</th>
-                      <th>Review state</th>
-                      <th>Due date</th>
-                      <th>Comments</th>
+                      <th>Fit type</th>
+                      <th>Confidence</th>
+                      <th>Scenario</th>
+                      <th>Process area</th>
+                      <th>Process</th>
+                      <th>Source</th>
+                      <th>Review reason</th>
                       <th>Response action</th>
                     </tr>
                   </thead>
                   <tbody id="report-compliance-matrix">
                     <tr>
-                      <td colspan="11">
+                      <td colspan="13">
                         <div class="empty-state-text">No compliance matrix available yet.</div>
                       </td>
                     </tr>
