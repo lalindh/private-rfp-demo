@@ -63,6 +63,7 @@ const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
 let selectedFiles = [];
 let fileRoles = new Map();
 let latestReport = null;
+let matrixData = [];
 let activeStatusFilter = 'all';
 let activeTypeFilter = 'all';
 let activeFitFilter = 'all';
@@ -219,6 +220,10 @@ function confidenceBadgeClass(value) {
   return `badge badge-confidence-${String(value || '').toLowerCase()}`;
 }
 
+function reviewBadgeClass(value) {
+  return `badge badge-review-${String(value || '').toLowerCase().replaceAll(' ', '-')}`;
+}
+
 function getFilteredMatrix(items) {
   return (items || []).filter(item => {
     const statusOk = activeStatusFilter === 'all' || item.status === activeStatusFilter;
@@ -241,12 +246,33 @@ function getFilteredMatrix(items) {
       item.reviewReason,
       item.responseAction,
       item.documentRole,
-      item.sourceMode
+      item.sourceMode,
+      item.sheetName,
+      item.rowNumber,
+      item.owner,
+      item.deadline,
+      item.reviewStatus,
+      item.comments
     ].join(' ').toLowerCase();
 
     const searchOk = !activeSearch || text.includes(activeSearch);
     return statusOk && typeOk && fitOk && searchOk;
   });
+}
+
+function updateMatrixField(rowId, field, value) {
+  matrixData = matrixData.map(item => {
+    if (item.requirementId === rowId) {
+      return { ...item, [field]: value };
+    }
+    return item;
+  });
+
+  if (latestReport) {
+    latestReport.complianceMatrix = matrixData;
+  }
+
+  renderComplianceMatrix(matrixData);
 }
 
 function renderComplianceMatrix(items) {
@@ -255,7 +281,7 @@ function renderComplianceMatrix(items) {
   if (!filtered.length) {
     reportComplianceMatrix.innerHTML = `
       <tr>
-        <td colspan="13">
+        <td colspan="18">
           <div class="empty-state-text">No compliance rows match the selected filters.</div>
         </td>
       </tr>
@@ -277,6 +303,12 @@ function renderComplianceMatrix(items) {
       <td><span class="${statusBadgeClass(item.status)}">${escapeHtml(item.status || '')}</span></td>
       <td><span class="${fitBadgeClass(item.fitType)}">${escapeHtml(item.fitType || '')}</span></td>
       <td><span class="${confidenceBadgeClass(item.confidence)}">${escapeHtml(item.confidence || '')}</span></td>
+      <td>
+        <div class="table-stack">
+          <strong>${escapeHtml(item.sheetName || '')}</strong>
+          <span class="table-mini">Row ${escapeHtml(item.rowNumber || '')}</span>
+        </div>
+      </td>
       <td>${escapeHtml(item.endToEndScenario || '')}</td>
       <td>
         <div class="table-stack">
@@ -291,10 +323,62 @@ function renderComplianceMatrix(items) {
           <span class="table-mini">${escapeHtml(item.documentRole || '')} · ${escapeHtml(item.sourceMode || '')}</span>
         </div>
       </td>
+      <td>
+        <input
+          class="cell-input"
+          type="text"
+          value="${escapeHtml(item.owner || '')}"
+          data-row-id="${escapeHtml(item.requirementId || '')}"
+          data-field="owner"
+          placeholder="Assign owner"
+        />
+      </td>
+      <td>
+        <input
+          class="cell-input"
+          type="date"
+          value="${escapeHtml(item.deadline || '')}"
+          data-row-id="${escapeHtml(item.requirementId || '')}"
+          data-field="deadline"
+        />
+      </td>
+      <td>
+        <div class="table-stack">
+          <span class="${reviewBadgeClass(item.reviewStatus)}">${escapeHtml(item.reviewStatus || '')}</span>
+          <select
+            class="cell-select"
+            data-row-id="${escapeHtml(item.requirementId || '')}"
+            data-field="reviewStatus"
+          >
+            <option value="Not started" ${item.reviewStatus === 'Not started' ? 'selected' : ''}>Not started</option>
+            <option value="In progress" ${item.reviewStatus === 'In progress' ? 'selected' : ''}>In progress</option>
+            <option value="Reviewed" ${item.reviewStatus === 'Reviewed' ? 'selected' : ''}>Reviewed</option>
+            <option value="Blocked" ${item.reviewStatus === 'Blocked' ? 'selected' : ''}>Blocked</option>
+          </select>
+        </div>
+      </td>
+      <td>
+        <textarea
+          class="cell-textarea"
+          data-row-id="${escapeHtml(item.requirementId || '')}"
+          data-field="comments"
+          placeholder="Add internal notes"
+        >${escapeHtml(item.comments || '')}</textarea>
+      </td>
       <td>${escapeHtml(item.reviewReason || '')}</td>
       <td>${escapeHtml(item.responseAction || '')}</td>
     </tr>
   `).join('');
+
+  reportComplianceMatrix.querySelectorAll('[data-row-id][data-field]').forEach(element => {
+    const eventName = element.tagName === 'TEXTAREA' || element.tagName === 'INPUT' ? 'change' : 'change';
+    element.addEventListener(eventName, event => {
+      const rowId = event.target.dataset.rowId;
+      const field = event.target.dataset.field;
+      const value = event.target.value;
+      updateMatrixField(rowId, field, value);
+    });
+  });
 }
 
 function renderReport(data) {
@@ -327,6 +411,7 @@ function renderReport(data) {
         </div>
       </div>
     `;
+    matrixData = [];
     renderComplianceMatrix([]);
     kpiDetected.textContent = '0';
     kpiAssumed.textContent = '0';
@@ -340,6 +425,7 @@ function renderReport(data) {
   }
 
   const requirements = data.complianceMatrix || [];
+  matrixData = requirements.map(item => ({ ...item }));
 
   reportTitle.textContent = 'Proposal intake report';
   reportSubtitle.textContent = 'Latest structured analysis output.';
@@ -441,14 +527,14 @@ function renderReport(data) {
     </div>
   `);
 
-  const detected = requirements.filter(item => item.status === 'Detected').length;
-  const assumed = requirements.filter(item => item.status === 'Assumed').length;
-  const gap = requirements.filter(item => item.status === 'Gap').length;
-  const review = requirements.filter(item => item.status === 'Needs review').length;
-  const mapped = requirements.filter(item => item.processArea && item.processArea !== 'Unmapped process area').length;
-  const highConfidence = requirements.filter(item => item.confidence === 'High').length;
-  const unclear = requirements.filter(item => item.fitType === 'Unclear').length;
-  const gapCount = requirements.filter(item => item.fitType === 'Integration gap' || item.fitType === 'Extension gap').length;
+  const detected = matrixData.filter(item => item.status === 'Detected').length;
+  const assumed = matrixData.filter(item => item.status === 'Assumed').length;
+  const gap = matrixData.filter(item => item.status === 'Gap').length;
+  const review = matrixData.filter(item => item.status === 'Needs review').length;
+  const mapped = matrixData.filter(item => item.processArea && item.processArea !== 'Unmapped process area').length;
+  const highConfidence = matrixData.filter(item => item.confidence === 'High').length;
+  const unclear = matrixData.filter(item => item.fitType === 'Unclear').length;
+  const gapCount = matrixData.filter(item => item.fitType === 'Integration gap' || item.fitType === 'Extension gap').length;
 
   kpiDetected.textContent = String(detected);
   kpiAssumed.textContent = String(assumed);
@@ -459,7 +545,7 @@ function renderReport(data) {
   kpiUnclear.textContent = String(unclear);
   kpiGapCount.textContent = String(gapCount);
 
-  renderComplianceMatrix(requirements);
+  renderComplianceMatrix(matrixData);
 }
 
 async function runAnalysis() {
@@ -509,7 +595,7 @@ async function runAnalysis() {
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The analysis was returned successfully.';
     suggestedNextStepTitle.textContent = 'Review report';
-    suggestedNextStepText.textContent = 'Inspect requirement roles, process mapping and fit/gap results.';
+    suggestedNextStepText.textContent = 'Inspect requirement roles, process mapping, owner assignment and deadlines.';
   } catch (error) {
     console.error(error);
     statusTitle.textContent = 'Analysis failed';
@@ -527,6 +613,7 @@ function clearFiles() {
   selectedFiles = [];
   fileRoles = new Map();
   latestReport = null;
+  matrixData = [];
   fileInput.value = '';
   navReport.disabled = true;
   openReportButton.disabled = true;
@@ -605,23 +692,23 @@ filterButtons.forEach(button => {
   button.addEventListener('click', () => {
     activeStatusFilter = button.dataset.filter;
     filterButtons.forEach(btn => btn.classList.toggle('is-active', btn === button));
-    renderComplianceMatrix(latestReport?.complianceMatrix || []);
+    renderComplianceMatrix(matrixData);
   });
 });
 
 matrixTypeFilter.addEventListener('change', event => {
   activeTypeFilter = event.target.value;
-  renderComplianceMatrix(latestReport?.complianceMatrix || []);
+  renderComplianceMatrix(matrixData);
 });
 
 matrixFitFilter.addEventListener('change', event => {
   activeFitFilter = event.target.value;
-  renderComplianceMatrix(latestReport?.complianceMatrix || []);
+  renderComplianceMatrix(matrixData);
 });
 
 matrixSearch.addEventListener('input', event => {
   activeSearch = event.target.value.trim().toLowerCase();
-  renderComplianceMatrix(latestReport?.complianceMatrix || []);
+  renderComplianceMatrix(matrixData);
 });
 
 renderFiles();
