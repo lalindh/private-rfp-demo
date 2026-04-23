@@ -161,6 +161,32 @@
           </article>
         </div>
 
+        <div class="workspace-kpis">
+          <article class="kpi-card">
+            <span class="status-label">Detected</span>
+            <strong id="kpi-detected">0</strong>
+            <p>Requirements already supported by current intake.</p>
+          </article>
+
+          <article class="kpi-card">
+            <span class="status-label">Assumed</span>
+            <strong id="kpi-assumed">0</strong>
+            <p>Items that likely apply but still need confirmation.</p>
+          </article>
+
+          <article class="kpi-card">
+            <span class="status-label">Gap</span>
+            <strong id="kpi-gap">0</strong>
+            <p>Requirements or signals that need more evidence.</p>
+          </article>
+
+          <article class="kpi-card">
+            <span class="status-label">Needs review</span>
+            <strong id="kpi-needs-review">0</strong>
+            <p>Items that should be reviewed before drafting continues.</p>
+          </article>
+        </div>
+
         <div class="report-body-grid">
           <article class="report-block report-block-featured">
             <span class="status-label">Executive summary</span>
@@ -251,8 +277,29 @@
           </article>
 
           <article class="report-block report-block-wide">
-            <span class="status-label">Compliance matrix</span>
-            <h3>Requirement tracking view</h3>
+            <span class="status-label">Compliance workspace</span>
+            <div class="matrix-header">
+              <div>
+                <h3>Requirement tracking view</h3>
+                <p>Use filters and search to focus the proposal team on the right requirements first.</p>
+              </div>
+            </div>
+
+            <div class="matrix-toolbar">
+              <div class="matrix-filters" role="group" aria-label="Compliance status filters">
+                <button class="filter-chip is-active" data-filter="all" type="button">All</button>
+                <button class="filter-chip" data-filter="Detected" type="button">Detected</button>
+                <button class="filter-chip" data-filter="Assumed" type="button">Assumed</button>
+                <button class="filter-chip" data-filter="Gap" type="button">Gap</button>
+                <button class="filter-chip" data-filter="Needs review" type="button">Needs review</button>
+              </div>
+
+              <label class="search-shell" for="matrix-search">
+                <span class="search-label">Search requirements</span>
+                <input id="matrix-search" class="search-input" type="search" placeholder="Search by requirement, owner or proposal section" />
+              </label>
+            </div>
+
             <div class="matrix-shell">
               <div class="matrix-scroll">
                 <table class="compliance-table">
