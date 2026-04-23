@@ -13,11 +13,16 @@ const suggestedNextStepText = document.getElementById('suggested-next-step-text'
 const apiStatusTitle = document.getElementById('api-status-title');
 const apiMessage = document.getElementById('api-message');
 
+const loadingPanel = document.getElementById('loading-panel');
+const loadingTitle = document.getElementById('loading-title');
+const loadingText = document.getElementById('loading-text');
+
 const workspaceView = document.getElementById('workspace-view');
 const reportView = document.getElementById('report-view');
 
 const reportTitle = document.getElementById('report-title');
 const reportSubtitle = document.getElementById('report-subtitle');
+const reportStatusBadge = document.getElementById('report-status-badge');
 const reportDocCount = document.getElementById('report-doc-count');
 const reportWorkstream = document.getElementById('report-workstream');
 const reportReadiness = document.getElementById('report-readiness');
@@ -56,6 +61,17 @@ function goToReport() {
 function goToWorkspace() {
   window.history.pushState({}, '', '/');
   renderView();
+}
+
+function setLoading(isLoading, title = '', text = '') {
+  if (!loadingPanel) return;
+
+  loadingPanel.classList.toggle('hidden', !isLoading);
+
+  if (isLoading) {
+    loadingTitle.textContent = title || 'Preparing analysis';
+    loadingText.textContent = text || 'The system is processing the selected files.';
+  }
 }
 
 function renderSignalList(container, items, variant) {
@@ -105,6 +121,7 @@ function renderReport(report) {
   if (!report) {
     reportTitle.textContent = 'Proposal intake report';
     reportSubtitle.textContent = 'Run an analysis from the workspace to generate a structured report.';
+    reportStatusBadge.textContent = 'Ready for review';
     reportDocCount.textContent = '0 files';
     reportWorkstream.textContent = 'Not analyzed';
     reportReadiness.textContent = 'Awaiting input';
@@ -126,6 +143,7 @@ function renderReport(report) {
   reportSubtitle.textContent = report.timestamp
     ? `Generated ${new Date(report.timestamp).toLocaleString()}`
     : 'Generated from the current analysis run.';
+  reportStatusBadge.textContent = 'Report generated';
 
   reportDocCount.textContent = `${documentCount} file${documentCount === 1 ? '' : 's'}`;
   reportWorkstream.textContent = workstream;
@@ -213,10 +231,19 @@ async function runAnalysis() {
 
   statusTitle.textContent = 'Analyzing files';
   statusText.textContent = 'Sending selected file metadata to the analysis API...';
+  suggestedNextStepTitle.textContent = 'Generating report';
+  suggestedNextStepText.textContent = 'The system is building a structured intake summary from the uploaded material.';
+
   analyzeButton.disabled = true;
   clearButton.disabled = true;
   openReportButton.disabled = true;
   analyzeButton.textContent = 'Analyzing...';
+
+  setLoading(
+    true,
+    'Analysis in progress',
+    'The platform is reviewing the selected file set and preparing the report view.'
+  );
 
   try {
     const payload = {
@@ -260,6 +287,7 @@ async function runAnalysis() {
     suggestedNextStepText.textContent = error.message;
     console.error('Analyze error:', error);
   } finally {
+    setLoading(false);
     analyzeButton.disabled = !selectedFiles.length;
     clearButton.disabled = !selectedFiles.length;
     analyzeButton.textContent = 'Analyze files';
@@ -270,6 +298,7 @@ function clearFiles() {
   selectedFiles = [];
   fileInput.value = '';
   latestReport = null;
+  setLoading(false);
   renderFiles();
   renderReport(null);
   goToWorkspace();
