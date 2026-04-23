@@ -1,6 +1,1 @@
-const button = document.getElementById("testButton");
-const status = document.getElementById("status");
-
-button.addEventListener("click", () => {
-  status.textContent = "Appen virker. Neste steg er filopplasting.";
-});
+document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{const id=a.getAttribute('href');const el=document.querySelector(id);if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'})}}));
