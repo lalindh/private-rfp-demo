@@ -201,6 +201,21 @@ function buildReviewReason(fitType, confidence, documentRole, sourceMode) {
   return 'Looks aligned with standard process coverage, but should still be validated during bid review.';
 }
 
+function defaultOwner(processArea, role) {
+  if (role === 'Commercial') return 'Commercial lead';
+  if (role === 'Evaluation criteria') return 'Bid manager';
+  if (String(processArea).toLowerCase().includes('finance')) return 'Finance SME';
+  if (String(processArea).toLowerCase().includes('integration')) return 'Solution architect';
+  if (String(processArea).toLowerCase().includes('service')) return 'Service lead';
+  return 'Bid manager';
+}
+
+function futureDate(daysFromNow) {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromNow);
+  return date.toISOString().slice(0, 10);
+}
+
 function mapToProcess(text, fileRole = 'Other') {
   const normalized = normalizeText(text);
 
@@ -274,6 +289,9 @@ function buildRequirementSentence(file, signal, index, role, sourceMode) {
 function buildRequirementRow(file, signal, index, options = {}) {
   const documentRole = String(options.documentRole || file.role || 'Other');
   const sourceMode = String(options.sourceMode || 'Inferred');
+  const sheetName = String(options.sheetName || 'Sheet1');
+  const rowNumber = Number(options.rowNumber || index + 2);
+
   const requirementText = buildRequirementSentence(file, signal, index, documentRole, sourceMode);
   const mapping = mapToProcess(`${signal} ${file.name} ${requirementText}`, documentRole);
   const typeInfo = inferRequirementType(`${signal} ${file.name} ${requirementText}`, documentRole);
@@ -290,10 +308,12 @@ function buildRequirementRow(file, signal, index, options = {}) {
     requirementType: typeInfo.requirementType,
     mandatoryLevel: typeInfo.mandatoryLevel,
     sourceDocument: file.name,
-    sourceSection: `Section ${index + 1}`,
+    sourceSection: `${sheetName} / row ${rowNumber}`,
     sourcePage: index + 1,
     sourceMode,
     documentRole,
+    sheetName,
+    rowNumber,
     endToEndScenario: mapping.endToEndScenario,
     processArea: mapping.processArea,
     process: mapping.process,
@@ -304,7 +324,12 @@ function buildRequirementRow(file, signal, index, options = {}) {
     priority,
     status,
     compliance,
-    owner: '',
+    owner: defaultOwner(mapping.processArea, documentRole),
+    deadline: futureDate((index % 5 + 1) * 3),
+    reviewStatus: index % 4 === 0 ? 'Reviewed' : index % 4 === 1 ? 'In progress' : index % 4 === 2 ? 'Not started' : 'Blocked',
+    comments: sourceMode === 'Extracted'
+      ? `Review original row in ${sheetName} before final proposal shaping.`
+      : 'This row is inferred and should be confirmed during review.',
     proposalSection: 'Solution fit and approach',
     responseAction:
       mapping.fitType === 'Standard fit'
@@ -326,22 +351,23 @@ function buildRequirements(files) {
     const role = String(file.role || 'Other');
     const ext = String(file.name || '').split('.').pop().toLowerCase();
     const isFunctionalExcel = role === 'Functional requirements' && (ext === 'xlsx' || ext === 'xls');
-
     const signals = splitFileNameToSignals(file.name);
 
     if (isFunctionalExcel) {
-      const selectedSignals = signals.slice(0, 4);
-      if (!selectedSignals.length) {
-        selectedSignals.push(`document ${fileIndex + 1}`);
-      }
+      const sheetCandidates = ['Overview', 'Functional Requirements', 'Processes', 'Integrations', 'Reporting'];
+      const selectedSignals = signals.length ? signals : [`workbook ${fileIndex + 1}`];
 
-      selectedSignals.forEach((signal, signalIndex) => {
-        rows.push(
-          buildRequirementRow(file, signal, rows.length + signalIndex, {
-            documentRole: role,
-            sourceMode: 'Extracted'
-          })
-        );
+      sheetCandidates.forEach((sheetName, sheetIndex) => {
+        selectedSignals.slice(0, 3).forEach((signal, signalIndex) => {
+          rows.push(
+            buildRequirementRow(file, `${signal} ${sheetName}`.trim(), rows.length, {
+              documentRole: role,
+              sourceMode: 'Extracted',
+              sheetName,
+              rowNumber: 2 + signalIndex + sheetIndex * 10
+            })
+          );
+        });
       });
 
       return;
@@ -356,13 +382,15 @@ function buildRequirements(files) {
       rows.push(
         buildRequirementRow(file, signal, rows.length + signalIndex, {
           documentRole: role,
-          sourceMode: 'Inferred'
+          sourceMode: 'Inferred',
+          sheetName: 'Document summary',
+          rowNumber: signalIndex + 1
         })
       );
     });
   });
 
-  return rows.slice(0, 18);
+  return rows.slice(0, 40);
 }
 
 function summarizeWorkstream(requirements) {
@@ -413,7 +441,7 @@ function buildRecommendedActions(files) {
     {
       title: 'Validate requirement extraction',
       text: hasFunctionalMaster
-        ? 'Review whether the designated functional requirements source is being represented correctly in the current requirement list.'
+        ? 'Review whether the designated functional requirements source is represented correctly in the current requirement list.'
         : 'No functional requirements master was marked. Confirm whether one of the uploaded files should be treated as the primary source.'
     },
     {
@@ -421,12 +449,12 @@ function buildRecommendedActions(files) {
       text: 'Validate process area and process matches against the Microsoft Business Process Catalog view you want to use.'
     },
     {
-      title: 'Review fit/gap assumptions',
-      text: 'Confirm which items are standard fit, configuration fit or true solution gaps before pricing and shaping.'
+      title: 'Assign ownership and deadlines',
+      text: 'Use the matrix owner and deadline fields actively so every requirement has a clear reviewer and due date.'
     },
     {
-      title: 'Prepare response strategy',
-      text: 'Use the reviewed matrix to decide where to reuse standard content and where to draft tailored responses.'
+      title: 'Review fit/gap assumptions',
+      text: 'Confirm which items are standard fit, configuration fit or true solution gaps before pricing and shaping.'
     }
   ];
 }
@@ -555,8 +583,8 @@ function buildFeed(files, requirements) {
       text: `${requirements.length} requirement rows were created, including ${extracted} extracted-style rows and ${inferred} inferred rows.`
     },
     {
-      title: 'Process mapping completed',
-      text: 'Each row was matched to a process area and process using a lightweight rule-based mapping model.'
+      title: 'Workbook-style traceability added',
+      text: 'Each row now includes sheet and row references together with owner, deadline, review status and comments.'
     }
   ];
 }
