@@ -3,224 +3,281 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Private RFP Demo</title>
+  <title>Cepheo Bid Workspace</title>
   <link rel="preconnect" href="https://api.fontshare.com">
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
+  <a class="skip-link" href="#main-content">Skip to content</a>
 
-  <main id="main" class="page">
-    <section id="workspace-view" class="app-view">
-      <section class="hero">
-        <p class="eyebrow">Cepheo proposal platform</p>
-        <h1>Build better RFP responses and proposal pages</h1>
-        <p class="lede">
-          A lightweight Microsoft-based platform for turning RFx material into structured requirement analysis, process-aligned scope insight and proposal-ready response workspaces.
-        </p>
-        <div class="actions">
-          <a class="button button-primary" href="#upload">Start demo</a>
-          <a class="button button-secondary" href="#workflow">How it works</a>
-        </div>
-      </section>
-
-      <section id="upload" class="feature-shell">
-        <div class="section-heading">
-          <p class="section-label">Demo flow</p>
-          <h2>Upload an RFP package</h2>
-          <p>
-            Use drag and drop or browse for files. Mark each file with a document role so the system knows what to treat as the functional requirements master.
-          </p>
-        </div>
-
-        <div class="upload-layout">
-          <div
-            id="drop-zone"
-            class="drop-zone"
-            tabindex="0"
-            role="button"
-            aria-label="Upload files by dragging them here or browsing from your computer"
-          >
-            <input id="file-input" class="file-input" type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt" />
-            <div class="drop-icon">+</div>
-            <h3>Drop files here</h3>
-            <p>or click to browse from your device</p>
-            <span class="drop-note">Supported demo formats: PDF, Word, PowerPoint, Excel, TXT</span>
-          </div>
-
-          <aside class="status-panel">
-            <div class="status-card">
-              <span class="status-label">Current state</span>
-              <strong id="status-title">Waiting for files</strong>
-              <p id="status-text">No files selected yet.</p>
-            </div>
-
-            <div class="status-card">
-              <span class="status-label">API status</span>
-              <strong id="api-status-title">Checking connection...</strong>
-              <p id="api-message">Trying to load message from Azure Functions.</p>
-            </div>
-
-            <div class="status-card">
-              <span class="status-label">Suggested next step</span>
-              <strong id="suggested-next-step-title">Upload sample RFP material</strong>
-              <p id="suggested-next-step-text">Select one or more files and assign a role before running analysis.</p>
-            </div>
-          </aside>
-        </div>
-
-        <div class="toolbar">
-          <button id="analyze-button" class="button button-primary" disabled>Analyze files</button>
-          <button id="open-report-button" class="button button-secondary" disabled>Open report</button>
-          <button id="clear-button" class="button button-secondary" disabled>Clear selection</button>
-        </div>
-
-        <div id="loading-panel" class="loading-panel hidden" aria-live="polite">
-          <div class="loading-shell">
-            <div class="loading-spinner" aria-hidden="true"></div>
-            <div class="loading-copy">
-              <strong id="loading-title">Preparing analysis</strong>
-              <p id="loading-text">The system is packaging the uploaded material and contacting the backend.</p>
-            </div>
-          </div>
-
-          <div class="loading-steps">
-            <div class="loading-step is-active">Collecting file metadata</div>
-            <div class="loading-step">Synthesizing requirement candidates</div>
-            <div class="loading-step">Mapping requirements to process coverage</div>
-          </div>
-        </div>
-
-        <div id="file-list" class="file-list" aria-live="polite"></div>
-      </section>
-
-      <section id="workflow" class="grid">
-        <article class="card">
-          <h2>1. Intake</h2>
-          <p>Collect source documents, instructions, requirements and supporting material from the opportunity team.</p>
-        </article>
-
-        <article class="card">
-          <h2>2. Analyze</h2>
-          <p>Generate structured requirements, process mapping, fit/gap insight and review signals.</p>
-        </article>
-
-        <article class="card">
-          <h2>3. Shape</h2>
-          <p>Turn approved scope insight into a response workspace ready for drafting and internal review.</p>
-        </article>
-      </section>
-    </section>
-
-    <section id="report-view" class="app-view hidden">
-      <div class="report-hero panel">
-        <div class="report-hero-copy">
-          <p class="section-label">Analysis report</p>
-          <h2 id="report-title">Proposal intake report</h2>
-          <p id="report-subtitle">Run an analysis from the workspace to generate a structured report.</p>
-        </div>
-
-        <div class="report-hero-meta">
-          <div class="hero-meta-card">
-            <span class="status-label">Report status</span>
-            <strong id="report-status-badge">Ready for review</strong>
-            <p>Structured output from the current intake run.</p>
-          </div>
-
-          <div class="hero-meta-card">
-            <span class="status-label">Workflow</span>
-            <strong id="report-workflow-pattern">Sequential analysis pipeline</strong>
-            <p id="report-workflow-stages">Waiting for analysis stages.</p>
-          </div>
-
-          <div class="report-header-actions">
-            <a class="button button-secondary" href="/" id="back-to-workspace-link">Back to workspace</a>
-          </div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">C</div>
+        <div>
+          <p class="brand-eyebrow">Cepheo</p>
+          <h1 class="brand-title">Bid management workspace</h1>
         </div>
       </div>
 
-      <section class="panel report-panel">
-        <div class="report-summary-grid">
-          <article class="result-card">
+      <nav class="topbar-actions" aria-label="Primary">
+        <button id="nav-workspace" class="nav-button is-active" type="button">Workspace</button>
+        <button id="nav-report" class="nav-button" type="button" disabled>Report</button>
+      </nav>
+    </header>
+
+    <main id="main-content" class="main-layout">
+      <section id="workspace-view" class="view-section">
+        <section class="hero-card">
+          <div class="hero-copy">
+            <p class="eyebrow">Proposal intake demo</p>
+            <h2>Upload documents and structure the intake before analysis</h2>
+            <p class="lede">
+              Mark document roles clearly so the platform can distinguish the functional requirements source from the main RFP, commercial documents and supporting material.
+            </p>
+            <div class="hero-actions">
+              <a href="#upload-panel" class="button button-primary">Go to upload</a>
+              <a href="#workflow-panel" class="button button-secondary">See workflow</a>
+            </div>
+          </div>
+
+          <aside class="hero-side">
+            <div class="mini-stat">
+              <span class="mini-stat-label">Current mode</span>
+              <strong>Structured intake</strong>
+              <p>Designed to reduce ambiguity before deeper analysis.</p>
+            </div>
+            <div class="mini-stat">
+              <span class="mini-stat-label">Recommended input</span>
+              <strong>Excel as requirements master</strong>
+              <p>Use an Excel file for the real requirement rows where possible.</p>
+            </div>
+          </aside>
+        </section>
+
+        <section id="upload-panel" class="panel">
+          <div class="section-heading">
+            <p class="section-label">Step 10</p>
+            <h2>Upload and classify documents</h2>
+            <p>
+              Upload one or more files, then assign a document role per file before running the analysis.
+            </p>
+          </div>
+
+          <div class="upload-grid">
+            <div
+              id="drop-zone"
+              class="drop-zone"
+              tabindex="0"
+              role="button"
+              aria-label="Drop files here or click to browse"
+            >
+              <input
+                id="file-input"
+                class="file-input"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt"
+              />
+              <div class="drop-icon">+</div>
+              <h3>Drop files here</h3>
+              <p>or click to browse</p>
+              <span class="drop-note">PDF, Word, PowerPoint, Excel and TXT supported in demo mode</span>
+            </div>
+
+            <aside class="status-stack">
+              <article class="status-card">
+                <span class="status-label">Current state</span>
+                <strong id="status-title">Waiting for files</strong>
+                <p id="status-text">No files selected yet.</p>
+              </article>
+
+              <article class="status-card">
+                <span class="status-label">Suggested next step</span>
+                <strong id="suggested-next-step-title">Upload RFP material</strong>
+                <p id="suggested-next-step-text">Select files and assign document roles before analysis.</p>
+              </article>
+
+              <article class="status-card">
+                <span class="status-label">API status</span>
+                <strong id="api-status-title">Not checked</strong>
+                <p id="api-message">The app has not checked the API yet.</p>
+              </article>
+            </aside>
+          </div>
+
+          <div class="toolbar">
+            <button id="analyze-button" class="button button-primary" type="button" disabled>Analyze files</button>
+            <button id="open-report-button" class="button button-secondary" type="button" disabled>Open report</button>
+            <button id="clear-button" class="button button-secondary" type="button" disabled>Clear</button>
+          </div>
+
+          <div id="loading-panel" class="loading-panel hidden" aria-live="polite">
+            <div class="loading-row">
+              <div class="loading-spinner" aria-hidden="true"></div>
+              <div>
+                <strong id="loading-title">Preparing analysis</strong>
+                <p id="loading-text">The app is sending the selected file metadata to the backend.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="list-shell">
+            <div class="list-block">
+              <div class="list-heading">
+                <h3>Selected files</h3>
+                <p>Current upload set</p>
+              </div>
+              <div id="file-list" class="file-list">
+                <div class="empty-state-text">No files selected yet.</div>
+              </div>
+            </div>
+
+            <div class="list-block">
+              <div class="list-heading">
+                <h3>Document roles</h3>
+                <p>Mark the role of each file before analysis</p>
+              </div>
+              <div class="role-legend">
+                <div class="role-card is-primary">
+                  <strong>Functional requirements</strong>
+                  <p>Use for Excel files that contain the actual requirement rows.</p>
+                </div>
+                <div class="role-card">
+                  <strong>Main RFP</strong>
+                  <p>Use for the customer’s main request document.</p>
+                </div>
+                <div class="role-card">
+                  <strong>Supporting roles</strong>
+                  <p>Use for commercial, evaluation and other supporting files.</p>
+                </div>
+              </div>
+              <div id="role-file-list" class="role-file-list">
+                <div class="empty-state-text">No files available for role assignment yet.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="workflow-panel" class="workflow-grid">
+          <article class="info-card">
+            <span class="status-label">1</span>
+            <h3>Intake</h3>
+            <p>Upload all relevant documents and clearly distinguish the requirement source from supporting documents.</p>
+          </article>
+
+          <article class="info-card">
+            <span class="status-label">2</span>
+            <h3>Analyze</h3>
+            <p>Generate a first structured requirement view with document-role awareness and process mapping.</p>
+          </article>
+
+          <article class="info-card">
+            <span class="status-label">3</span>
+            <h3>Review</h3>
+            <p>Validate fit, gap, assumptions and unclear items before building proposal content.</p>
+          </article>
+        </section>
+      </section>
+
+      <section id="report-view" class="view-section hidden">
+        <section class="panel report-hero">
+          <div>
+            <p class="section-label">Analysis report</p>
+            <h2 id="report-title">Proposal intake report</h2>
+            <p id="report-subtitle">Run an analysis from the workspace to generate a report.</p>
+          </div>
+
+          <div class="report-hero-actions">
+            <div class="mini-stat">
+              <span class="mini-stat-label">Report status</span>
+              <strong id="report-status-badge">Ready for review</strong>
+              <p>Structured output from the latest run.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="report-grid">
+          <article class="panel stat-card">
             <span class="status-label">Documents</span>
             <strong id="report-doc-count">0 files</strong>
-            <p>Files included in the current analysis run.</p>
+            <p>Files included in the current analysis.</p>
           </article>
 
-          <article class="result-card">
-            <span class="status-label">Detected workstream</span>
+          <article class="panel stat-card">
+            <span class="status-label">Workstream</span>
             <strong id="report-workstream">Not analyzed</strong>
-            <p>Current categorization based on uploaded material.</p>
+            <p>Detected process focus.</p>
           </article>
 
-          <article class="result-card">
-            <span class="status-label">Proposal readiness</span>
+          <article class="panel stat-card">
+            <span class="status-label">Readiness</span>
             <strong id="report-readiness">Awaiting input</strong>
-            <p>Readiness estimate for the next proposal step.</p>
+            <p>Current proposal readiness.</p>
           </article>
-        </div>
+        </section>
 
-        <div class="workspace-kpis">
-          <article class="kpi-card">
+        <section class="report-grid kpi-grid">
+          <article class="panel stat-card">
             <span class="status-label">Detected</span>
             <strong id="kpi-detected">0</strong>
-            <p>Requirements already supported by current analysis.</p>
+            <p>Requirements mapped as standard fit.</p>
           </article>
 
-          <article class="kpi-card">
+          <article class="panel stat-card">
             <span class="status-label">Assumed</span>
             <strong id="kpi-assumed">0</strong>
-            <p>Items that look coverable through configuration or clarified scope.</p>
+            <p>Requirements likely handled by configuration.</p>
           </article>
 
-          <article class="kpi-card">
+          <article class="panel stat-card">
             <span class="status-label">Gap</span>
             <strong id="kpi-gap">0</strong>
-            <p>Rows that suggest extension or integration needs.</p>
+            <p>Requirements that suggest extension or integration work.</p>
           </article>
 
-          <article class="kpi-card">
+          <article class="panel stat-card">
             <span class="status-label">Needs review</span>
             <strong id="kpi-needs-review">0</strong>
-            <p>Rows where classification confidence is still too weak.</p>
+            <p>Rows that still need manual validation.</p>
           </article>
-        </div>
+        </section>
 
-        <div class="workspace-kpis workspace-kpis-secondary">
-          <article class="kpi-card">
+        <section class="report-grid kpi-grid">
+          <article class="panel stat-card">
             <span class="status-label">Mapped rows</span>
             <strong id="kpi-mapped">0</strong>
-            <p>Rows with a process area and process match.</p>
+            <p>Rows with process mapping.</p>
           </article>
 
-          <article class="kpi-card">
+          <article class="panel stat-card">
             <span class="status-label">High confidence</span>
             <strong id="kpi-high-confidence">0</strong>
-            <p>Rows with stronger process mapping confidence.</p>
+            <p>Rows with stronger confidence.</p>
           </article>
 
-          <article class="kpi-card">
+          <article class="panel stat-card">
             <span class="status-label">Unclear mappings</span>
             <strong id="kpi-unclear">0</strong>
-            <p>Rows that still need manual process classification.</p>
+            <p>Rows that still need classification.</p>
           </article>
 
-          <article class="kpi-card">
+          <article class="panel stat-card">
             <span class="status-label">Gap rows</span>
             <strong id="kpi-gap-count">0</strong>
-            <p>Rows that likely need design, extension or integration discussion.</p>
+            <p>Rows with gap-related fit types.</p>
           </article>
-        </div>
+        </section>
 
-        <div class="report-body-grid">
-          <article class="report-block report-block-featured">
+        <section class="report-body">
+          <article class="panel report-block report-block-wide">
             <span class="status-label">Executive summary</span>
             <h3>Summary</h3>
-            <p id="report-executive-summary">No report has been generated yet.</p>
+            <p id="report-executive-summary">No report generated yet.</p>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Scope signals</span>
             <h3>Detected signals</h3>
             <div id="report-scope-signals" class="signal-list">
@@ -228,7 +285,7 @@
             </div>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Risk flags</span>
             <h3>Review attention points</h3>
             <div id="report-risk-flags" class="signal-list">
@@ -236,83 +293,81 @@
             </div>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Recommended actions</span>
             <h3>Suggested next actions</h3>
             <div id="report-recommended-actions" class="signal-list">
-              <div class="empty-state-text">No actions available yet.</div>
+              <div class="empty-state-text">No actions yet.</div>
             </div>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Catalog alignment</span>
-            <h3>Process catalog matches</h3>
+            <h3>Process matches</h3>
             <div id="report-catalog-matches" class="signal-list">
-              <div class="empty-state-text">No catalog matches available yet.</div>
+              <div class="empty-state-text">No catalog matches yet.</div>
             </div>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Proposal shaping</span>
-            <h3>Suggested proposal page sections</h3>
+            <h3>Suggested sections</h3>
             <div id="report-proposal-page-sections" class="signal-list">
-              <div class="empty-state-text">No proposal sections available yet.</div>
+              <div class="empty-state-text">No proposal sections yet.</div>
             </div>
           </article>
-        </div>
 
-        <div class="report-deep-grid">
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Requirements</span>
-            <h3>Inferred requirement set</h3>
+            <h3>Requirement set</h3>
             <div id="report-requirements" class="signal-list">
-              <div class="empty-state-text">No requirements available yet.</div>
+              <div class="empty-state-text">No requirements yet.</div>
             </div>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Assumptions</span>
             <h3>Current assumptions</h3>
             <div id="report-assumptions" class="signal-list">
-              <div class="empty-state-text">No assumptions available yet.</div>
+              <div class="empty-state-text">No assumptions yet.</div>
             </div>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Gap analysis</span>
             <h3>Detected gaps</h3>
             <div id="report-gaps" class="signal-list">
-              <div class="empty-state-text">No gaps available yet.</div>
+              <div class="empty-state-text">No gaps yet.</div>
             </div>
           </article>
 
-          <article class="report-block">
+          <article class="panel report-block">
             <span class="status-label">Evaluation focus</span>
             <h3>Suggested review focus</h3>
             <div id="report-evaluation-focus" class="signal-list">
-              <div class="empty-state-text">No evaluation focus available yet.</div>
+              <div class="empty-state-text">No evaluation focus yet.</div>
             </div>
           </article>
 
-          <article class="report-block report-block-wide">
+          <article class="panel report-block report-block-wide">
             <span class="status-label">Response outline</span>
             <h3>Proposed response structure</h3>
             <div id="report-response-outline" class="signal-list">
-              <div class="empty-state-text">No response outline available yet.</div>
+              <div class="empty-state-text">No response outline yet.</div>
             </div>
           </article>
 
-          <article class="report-block report-block-wide">
+          <article class="panel report-block report-block-wide">
             <span class="status-label">Compliance workspace</span>
             <div class="matrix-header">
               <div>
-                <h3>Requirement and process tracking view</h3>
-                <p>Use filters to review requirement type, fit/gap outcome and Business Process Catalog-style process mapping.</p>
+                <h3>Requirement and process tracking</h3>
+                <p>Filter by status, requirement type and fit type.</p>
               </div>
             </div>
 
-            <div class="matrix-toolbar matrix-toolbar-stacked">
-              <div class="matrix-filters" role="group" aria-label="Compliance status filters">
+            <div class="matrix-toolbar">
+              <div class="matrix-filters" role="group" aria-label="Status filters">
                 <button class="filter-chip is-active" data-filter="all" type="button">All</button>
                 <button class="filter-chip" data-filter="Detected" type="button">Detected</button>
                 <button class="filter-chip" data-filter="Assumed" type="button">Assumed</button>
@@ -321,9 +376,9 @@
               </div>
 
               <div class="matrix-subfilters">
-                <label class="search-shell" for="matrix-type-filter">
-                  <span class="search-label">Requirement type</span>
-                  <select id="matrix-type-filter" class="search-input">
+                <label class="filter-field">
+                  <span>Requirement type</span>
+                  <select id="matrix-type-filter">
                     <option value="all">All types</option>
                     <option value="Functional requirement">Functional requirement</option>
                     <option value="Non-functional requirement">Non-functional requirement</option>
@@ -332,9 +387,9 @@
                   </select>
                 </label>
 
-                <label class="search-shell" for="matrix-fit-filter">
-                  <span class="search-label">Fit type</span>
-                  <select id="matrix-fit-filter" class="search-input">
+                <label class="filter-field">
+                  <span>Fit type</span>
+                  <select id="matrix-fit-filter">
                     <option value="all">All fit types</option>
                     <option value="Standard fit">Standard fit</option>
                     <option value="Configuration fit">Configuration fit</option>
@@ -344,113 +399,81 @@
                   </select>
                 </label>
 
-                <label class="search-shell" for="matrix-search">
-                  <span class="search-label">Search requirements</span>
-                  <input id="matrix-search" class="search-input" type="search" placeholder="Search by requirement, process, fit type or document" />
+                <label class="filter-field filter-field-wide">
+                  <span>Search</span>
+                  <input id="matrix-search" type="search" placeholder="Search requirement, process or source" />
                 </label>
               </div>
             </div>
 
-            <div class="matrix-shell">
-              <div class="matrix-scroll">
-                <table class="compliance-table compliance-table-advanced">
-                  <thead>
-                    <tr>
-                      <th>Req ID</th>
-                      <th>Requirement</th>
-                      <th>Type</th>
-                      <th>Mandatory</th>
-                      <th>Status</th>
-                      <th>Fit type</th>
-                      <th>Confidence</th>
-                      <th>Scenario</th>
-                      <th>Process area</th>
-                      <th>Process</th>
-                      <th>Source</th>
-                      <th>Review reason</th>
-                      <th>Response action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="report-compliance-matrix">
-                    <tr>
-                      <td colspan="13">
-                        <div class="empty-state-text">No compliance matrix available yet.</div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+            <div class="table-shell">
+              <table class="compliance-table">
+                <thead>
+                  <tr>
+                    <th>Req ID</th>
+                    <th>Requirement</th>
+                    <th>Type</th>
+                    <th>Mandatory</th>
+                    <th>Status</th>
+                    <th>Fit type</th>
+                    <th>Confidence</th>
+                    <th>Scenario</th>
+                    <th>Process area</th>
+                    <th>Process</th>
+                    <th>Source</th>
+                    <th>Review reason</th>
+                    <th>Response action</th>
+                  </tr>
+                </thead>
+                <tbody id="report-compliance-matrix">
+                  <tr>
+                    <td colspan="13">
+                      <div class="empty-state-text">No compliance matrix available yet.</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </article>
 
-          <article class="report-block report-block-wide">
-            <span class="status-label">Intake diagnostics</span>
+          <article class="panel report-block report-block-wide">
+            <span class="status-label">Diagnostics</span>
             <h3>Detected and missing signals</h3>
             <div class="diagnostic-grid">
               <div class="diagnostic-card">
-                <span class="status-label">Detected</span>
+                <h4>Detected</h4>
                 <div id="report-detected-signals" class="signal-list">
-                  <div class="empty-state-text">No detected signals available yet.</div>
+                  <div class="empty-state-text">No detected signals yet.</div>
                 </div>
               </div>
+
               <div class="diagnostic-card">
-                <span class="status-label">Missing</span>
+                <h4>Missing</h4>
                 <div id="report-missing-signals" class="signal-list">
-                  <div class="empty-state-text">No missing signals available yet.</div>
+                  <div class="empty-state-text">No missing signals yet.</div>
                 </div>
               </div>
             </div>
           </article>
-        </div>
 
-        <div class="report-timeline">
-          <div class="section-heading report-section-heading">
-            <p class="section-label">Analysis timeline</p>
-            <h2>Processing notes</h2>
-            <p>Structured activity log returned by the analysis API.</p>
-          </div>
-
-          <div id="analysis-feed" class="analysis-feed" aria-live="polite">
-            <div class="feed-item">
-              <div class="feed-dot"></div>
-              <div>
-                <strong>Report not generated</strong>
-                <p>Return to the workspace and run an analysis to populate this view.</p>
+          <article class="panel report-block report-block-wide">
+            <span class="status-label">Timeline</span>
+            <h3>Processing notes</h3>
+            <div id="analysis-feed" class="analysis-feed">
+              <div class="feed-item">
+                <div class="feed-dot"></div>
+                <div>
+                  <strong>No analysis run yet</strong>
+                  <p>Return to workspace and run analysis.</p>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </article>
+        </section>
       </section>
-    </section>
+    </main>
+  </div>
 
-    <section id="upload-metadata" class="feature-shell">
-      <div class="section-heading">
-        <p class="section-label">Document roles</p>
-        <h2>Mark each file before analysis</h2>
-        <p>
-          Excel with functional requirements should be marked as the master source so the backend can treat it as the primary requirements input.
-        </p>
-      </div>
-
-      <div class="role-legend">
-        <div class="role-card is-primary">
-          <strong>Functional requirements</strong>
-          <p>Use for Excel files that contain the actual requirement rows.</p>
-        </div>
-        <div class="role-card">
-          <strong>Main RFP</strong>
-          <p>Use for the main tender or RFP document.</p>
-        </div>
-        <div class="role-card">
-          <strong>Commercial / other</strong>
-          <p>Use for supporting files, evaluation criteria and appendices.</p>
-        </div>
-      </div>
-
-      <div id="role-file-list" class="role-file-list"></div>
-    </section>
-  </main>
-
-  <script src="app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
