@@ -30,6 +30,8 @@ const reportExecutiveSummary = document.getElementById('report-executive-summary
 const reportScopeSignals = document.getElementById('report-scope-signals');
 const reportRiskFlags = document.getElementById('report-risk-flags');
 const reportRecommendedActions = document.getElementById('report-recommended-actions');
+const reportCatalogMatches = document.getElementById('report-catalog-matches');
+const reportProposalPageSections = document.getElementById('report-proposal-page-sections');
 const analysisFeed = document.getElementById('analysis-feed');
 const backToWorkspaceLink = document.getElementById('back-to-workspace-link');
 
@@ -74,17 +76,50 @@ function setLoading(isLoading, title = '', text = '') {
   }
 }
 
-function renderSignalList(container, items, variant) {
+function renderSimpleSignalList(container, items, variant, emptyText) {
   if (!container) return;
 
   if (!items || !items.length) {
-    container.innerHTML = '<div class="empty-state-text">No items available.</div>';
+    container.innerHTML = `<div class="empty-state-text">${emptyText}</div>`;
     return;
   }
 
   container.innerHTML = items.map(item => `
     <div class="signal-item ${variant ? `signal-item-${variant}` : ''}">
       <strong>${item.title || 'Untitled'}</strong>
+      <p>${item.text || ''}</p>
+    </div>
+  `).join('');
+}
+
+function renderCatalogMatches(items) {
+  if (!reportCatalogMatches) return;
+
+  if (!items || !items.length) {
+    reportCatalogMatches.innerHTML = '<div class="empty-state-text">No catalog matches available yet.</div>';
+    return;
+  }
+
+  reportCatalogMatches.innerHTML = items.map(item => `
+    <div class="signal-item signal-item-catalog">
+      <span class="signal-meta">${item.level || 'Catalog level'} · ${item.type || 'Catalog item'}</span>
+      <strong>${item.name || 'Unnamed catalog match'}</strong>
+      <p>${item.rationale || ''}</p>
+    </div>
+  `).join('');
+}
+
+function renderProposalPageSections(items) {
+  if (!reportProposalPageSections) return;
+
+  if (!items || !items.length) {
+    reportProposalPageSections.innerHTML = '<div class="empty-state-text">No proposal sections available yet.</div>';
+    return;
+  }
+
+  reportProposalPageSections.innerHTML = items.map(item => `
+    <div class="signal-item signal-item-section">
+      <strong>${item.title || 'Untitled section'}</strong>
       <p>${item.text || ''}</p>
     </div>
   `).join('');
@@ -126,10 +161,14 @@ function renderReport(report) {
     reportWorkstream.textContent = 'Not analyzed';
     reportReadiness.textContent = 'Awaiting input';
     reportExecutiveSummary.textContent = 'No report has been generated yet.';
-    renderSignalList(reportScopeSignals, []);
-    renderSignalList(reportRiskFlags, [], 'risk');
-    renderSignalList(reportRecommendedActions, [], 'action');
+
+    renderSimpleSignalList(reportScopeSignals, [], '', 'No scope signals yet.');
+    renderSimpleSignalList(reportRiskFlags, [], 'risk', 'No risk flags yet.');
+    renderSimpleSignalList(reportRecommendedActions, [], 'action', 'No actions available yet.');
+    renderCatalogMatches([]);
+    renderProposalPageSections([]);
     renderFeed([]);
+
     openReportButton.disabled = true;
     return;
   }
@@ -150,9 +189,11 @@ function renderReport(report) {
   reportReadiness.textContent = readiness;
   reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
 
-  renderSignalList(reportScopeSignals, report.scopeSignals || []);
-  renderSignalList(reportRiskFlags, report.riskFlags || [], 'risk');
-  renderSignalList(reportRecommendedActions, report.recommendedActions || [], 'action');
+  renderSimpleSignalList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
+  renderSimpleSignalList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
+  renderSimpleSignalList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
+  renderCatalogMatches(report.catalogMatches || []);
+  renderProposalPageSections(report.proposalPageSections || []);
   renderFeed(report.feed || []);
 
   openReportButton.disabled = false;
@@ -278,7 +319,7 @@ async function runAnalysis() {
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The backend returned a structured analysis summary.';
     suggestedNextStepTitle.textContent = 'Open report';
-    suggestedNextStepText.textContent = 'Review the full analysis report in a dedicated report view.';
+    suggestedNextStepText.textContent = 'Review the full analysis report, including process catalog matches and proposal page structure.';
     openReportButton.disabled = false;
   } catch (error) {
     statusTitle.textContent = 'Analysis failed';
