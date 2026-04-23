@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Private RFP Demo</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Private RFP Demo</h1>
+    <p>Første versjon av demoen er oppe.</p>
+
+    <section class="card">
+      <h2>Neste mål</h2>
+      <p>Bygge drag-and-drop for RFP-opplasting.</p>
+      <button id="testButton">Test app</button>
+    </section>
+
+    <section class="card">
+      <h2>Status</h2>
+      <p id="status">Klar for første test.</p>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
