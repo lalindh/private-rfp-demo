@@ -23,6 +23,8 @@ const reportView = document.getElementById('report-view');
 const reportTitle = document.getElementById('report-title');
 const reportSubtitle = document.getElementById('report-subtitle');
 const reportStatusBadge = document.getElementById('report-status-badge');
+const reportWorkflowPattern = document.getElementById('report-workflow-pattern');
+const reportWorkflowStages = document.getElementById('report-workflow-stages');
 const reportDocCount = document.getElementById('report-doc-count');
 const reportWorkstream = document.getElementById('report-workstream');
 const reportReadiness = document.getElementById('report-readiness');
@@ -32,6 +34,13 @@ const reportRiskFlags = document.getElementById('report-risk-flags');
 const reportRecommendedActions = document.getElementById('report-recommended-actions');
 const reportCatalogMatches = document.getElementById('report-catalog-matches');
 const reportProposalPageSections = document.getElementById('report-proposal-page-sections');
+const reportRequirements = document.getElementById('report-requirements');
+const reportAssumptions = document.getElementById('report-assumptions');
+const reportGaps = document.getElementById('report-gaps');
+const reportEvaluationFocus = document.getElementById('report-evaluation-focus');
+const reportResponseOutline = document.getElementById('report-response-outline');
+const reportDetectedSignals = document.getElementById('report-detected-signals');
+const reportMissingSignals = document.getElementById('report-missing-signals');
 const analysisFeed = document.getElementById('analysis-feed');
 const backToWorkspaceLink = document.getElementById('back-to-workspace-link');
 
@@ -47,6 +56,15 @@ function formatBytes(bytes) {
 function getExtension(name) {
   const parts = name.split('.');
   return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function renderView() {
@@ -76,18 +94,18 @@ function setLoading(isLoading, title = '', text = '') {
   }
 }
 
-function renderSimpleSignalList(container, items, variant, emptyText) {
+function renderBasicList(container, items, variant, emptyText) {
   if (!container) return;
 
   if (!items || !items.length) {
-    container.innerHTML = `<div class="empty-state-text">${emptyText}</div>`;
+    container.innerHTML = `<div class="empty-state-text">${escapeHtml(emptyText)}</div>`;
     return;
   }
 
   container.innerHTML = items.map(item => `
     <div class="signal-item ${variant ? `signal-item-${variant}` : ''}">
-      <strong>${item.title || 'Untitled'}</strong>
-      <p>${item.text || ''}</p>
+      <strong>${escapeHtml(item.title || item.section || 'Untitled')}</strong>
+      <p>${escapeHtml(item.text || '')}</p>
     </div>
   `).join('');
 }
@@ -102,9 +120,9 @@ function renderCatalogMatches(items) {
 
   reportCatalogMatches.innerHTML = items.map(item => `
     <div class="signal-item signal-item-catalog">
-      <span class="signal-meta">${item.level || 'Catalog level'} · ${item.type || 'Catalog item'}</span>
-      <strong>${item.name || 'Unnamed catalog match'}</strong>
-      <p>${item.rationale || ''}</p>
+      <span class="signal-meta">${escapeHtml(item.level || 'Catalog level')} · ${escapeHtml(item.type || 'Catalog item')}</span>
+      <strong>${escapeHtml(item.name || 'Unnamed catalog match')}</strong>
+      <p>${escapeHtml(item.rationale || '')}</p>
     </div>
   `).join('');
 }
@@ -119,8 +137,90 @@ function renderProposalPageSections(items) {
 
   reportProposalPageSections.innerHTML = items.map(item => `
     <div class="signal-item signal-item-section">
-      <strong>${item.title || 'Untitled section'}</strong>
-      <p>${item.text || ''}</p>
+      <strong>${escapeHtml(item.title || 'Untitled section')}</strong>
+      <p>${escapeHtml(item.text || '')}</p>
+    </div>
+  `).join('');
+}
+
+function renderRequirements(items) {
+  if (!reportRequirements) return;
+
+  if (!items || !items.length) {
+    reportRequirements.innerHTML = '<div class="empty-state-text">No requirements available yet.</div>';
+    return;
+  }
+
+  reportRequirements.innerHTML = items.map(item => `
+    <div class="signal-item signal-item-requirement">
+      <span class="signal-meta">${escapeHtml(item.id || 'REQ')} · ${escapeHtml(item.priority || 'Priority')} · ${escapeHtml(item.status || 'Status')}</span>
+      <strong>${escapeHtml(item.title || 'Untitled requirement')}</strong>
+      <p>${escapeHtml(item.text || '')}</p>
+    </div>
+  `).join('');
+}
+
+function renderAssumptions(items) {
+  if (!reportAssumptions) return;
+
+  if (!items || !items.length) {
+    reportAssumptions.innerHTML = '<div class="empty-state-text">No assumptions available yet.</div>';
+    return;
+  }
+
+  reportAssumptions.innerHTML = items.map(item => `
+    <div class="signal-item signal-item-assumption">
+      <strong>${escapeHtml(item.title || 'Untitled assumption')}</strong>
+      <p>${escapeHtml(item.text || '')}</p>
+    </div>
+  `).join('');
+}
+
+function renderGaps(items) {
+  if (!reportGaps) return;
+
+  if (!items || !items.length) {
+    reportGaps.innerHTML = '<div class="empty-state-text">No gaps available yet.</div>';
+    return;
+  }
+
+  reportGaps.innerHTML = items.map(item => `
+    <div class="signal-item signal-item-gap">
+      <span class="signal-meta">${escapeHtml(item.id || 'GAP')} · ${escapeHtml(item.severity || 'Severity')}</span>
+      <strong>${escapeHtml(item.area || 'Untitled gap')}</strong>
+      <p>${escapeHtml(item.impact || '')}</p>
+      <p>${escapeHtml(item.recommendation || '')}</p>
+    </div>
+  `).join('');
+}
+
+function renderResponseOutline(items) {
+  if (!reportResponseOutline) return;
+
+  if (!items || !items.length) {
+    reportResponseOutline.innerHTML = '<div class="empty-state-text">No response outline available yet.</div>';
+    return;
+  }
+
+  reportResponseOutline.innerHTML = items.map(item => `
+    <div class="signal-item signal-item-outline">
+      <span class="signal-meta">${escapeHtml(item.section || 'Section')}</span>
+      <p>${escapeHtml(item.text || '')}</p>
+    </div>
+  `).join('');
+}
+
+function renderSimpleStringList(container, items, emptyText) {
+  if (!container) return;
+
+  if (!items || !items.length) {
+    container.innerHTML = `<div class="empty-state-text">${escapeHtml(emptyText)}</div>`;
+    return;
+  }
+
+  container.innerHTML = items.map(item => `
+    <div class="signal-item">
+      <p>${escapeHtml(item)}</p>
     </div>
   `).join('');
 }
@@ -145,35 +245,50 @@ function renderFeed(feed) {
     <div class="feed-item">
       <div class="feed-dot"></div>
       <div>
-        <strong>${item.title || 'Update'}</strong>
-        <p>${item.text || ''}</p>
+        <strong>${escapeHtml(item.title || 'Update')}</strong>
+        <p>${escapeHtml(item.text || '')}</p>
       </div>
     </div>
   `).join('');
 }
 
+function resetReportView() {
+  reportTitle.textContent = 'Proposal intake report';
+  reportSubtitle.textContent = 'Run an analysis from the workspace to generate a structured report.';
+  reportStatusBadge.textContent = 'Ready for review';
+  reportWorkflowPattern.textContent = 'Sequential analysis pipeline';
+  reportWorkflowStages.textContent = 'Waiting for analysis stages.';
+  reportDocCount.textContent = '0 files';
+  reportWorkstream.textContent = 'Not analyzed';
+  reportReadiness.textContent = 'Awaiting input';
+  reportExecutiveSummary.textContent = 'No report has been generated yet.';
+
+  renderBasicList(reportScopeSignals, [], '', 'No scope signals yet.');
+  renderBasicList(reportRiskFlags, [], 'risk', 'No risk flags yet.');
+  renderBasicList(reportRecommendedActions, [], 'action', 'No actions available yet.');
+  renderCatalogMatches([]);
+  renderProposalPageSections([]);
+  renderRequirements([]);
+  renderAssumptions([]);
+  renderBasicList(reportEvaluationFocus, [], '', 'No evaluation focus available yet.');
+  renderGaps([]);
+  renderResponseOutline([]);
+  renderSimpleStringList(reportDetectedSignals, [], 'No detected signals available yet.');
+  renderSimpleStringList(reportMissingSignals, [], 'No missing signals available yet.');
+  renderFeed([]);
+}
+
 function renderReport(report) {
   if (!report) {
-    reportTitle.textContent = 'Proposal intake report';
-    reportSubtitle.textContent = 'Run an analysis from the workspace to generate a structured report.';
-    reportStatusBadge.textContent = 'Ready for review';
-    reportDocCount.textContent = '0 files';
-    reportWorkstream.textContent = 'Not analyzed';
-    reportReadiness.textContent = 'Awaiting input';
-    reportExecutiveSummary.textContent = 'No report has been generated yet.';
-
-    renderSimpleSignalList(reportScopeSignals, [], '', 'No scope signals yet.');
-    renderSimpleSignalList(reportRiskFlags, [], 'risk', 'No risk flags yet.');
-    renderSimpleSignalList(reportRecommendedActions, [], 'action', 'No actions available yet.');
-    renderCatalogMatches([]);
-    renderProposalPageSections([]);
-    renderFeed([]);
-
+    resetReportView();
     openReportButton.disabled = true;
     return;
   }
 
   const summary = report.summary || {};
+  const workflow = report.workflow || {};
+  const diagnostics = report.intakeDiagnostics || {};
+
   const documentCount = summary.documentCount || 0;
   const workstream = summary.workstream || 'Not analyzed';
   const readiness = summary.readiness || 'Awaiting input';
@@ -184,16 +299,28 @@ function renderReport(report) {
     : 'Generated from the current analysis run.';
   reportStatusBadge.textContent = 'Report generated';
 
+  reportWorkflowPattern.textContent = workflow.pattern || 'Sequential analysis pipeline';
+  reportWorkflowStages.textContent = Array.isArray(workflow.stages) && workflow.stages.length
+    ? workflow.stages.join(' → ')
+    : 'No workflow stages available.';
+
   reportDocCount.textContent = `${documentCount} file${documentCount === 1 ? '' : 's'}`;
   reportWorkstream.textContent = workstream;
   reportReadiness.textContent = readiness;
   reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
 
-  renderSimpleSignalList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
-  renderSimpleSignalList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
-  renderSimpleSignalList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
+  renderBasicList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
+  renderBasicList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
+  renderBasicList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
   renderCatalogMatches(report.catalogMatches || []);
   renderProposalPageSections(report.proposalPageSections || []);
+  renderRequirements(report.requirements || []);
+  renderAssumptions(report.assumptions || []);
+  renderBasicList(reportEvaluationFocus, report.evaluationFocus || [], '', 'No evaluation focus available yet.');
+  renderGaps(report.gaps || []);
+  renderResponseOutline(report.responseOutline || []);
+  renderSimpleStringList(reportDetectedSignals, diagnostics.detectedSignals || [], 'No detected signals available yet.');
+  renderSimpleStringList(reportMissingSignals, diagnostics.missingSignals || [], 'No missing signals available yet.');
   renderFeed(report.feed || []);
 
   openReportButton.disabled = false;
@@ -253,10 +380,10 @@ function renderFiles() {
     item.className = 'file-item';
     item.innerHTML = `
       <div class="file-meta">
-        <span class="file-name">${file.name}</span>
-        <span class="file-info">${formatBytes(file.size)} · ${file.type || 'Unknown file type'}</span>
+        <span class="file-name">${escapeHtml(file.name)}</span>
+        <span class="file-info">${escapeHtml(formatBytes(file.size))} · ${escapeHtml(file.type || 'Unknown file type')}</span>
       </div>
-      <span class="file-tag">${getExtension(file.name)}</span>
+      <span class="file-tag">${escapeHtml(getExtension(file.name))}</span>
     `;
     fileList.appendChild(item);
   });
@@ -319,7 +446,7 @@ async function runAnalysis() {
     statusTitle.textContent = 'Analysis complete';
     statusText.textContent = 'The backend returned a structured analysis summary.';
     suggestedNextStepTitle.textContent = 'Open report';
-    suggestedNextStepText.textContent = 'Review the full analysis report, including process catalog matches and proposal page structure.';
+    suggestedNextStepText.textContent = 'Review the full analysis report, including requirements, gaps, and the proposed response structure.';
     openReportButton.disabled = false;
   } catch (error) {
     statusTitle.textContent = 'Analysis failed';
