@@ -20,22 +20,26 @@ function unique(values) {
   return [...new Set(values)];
 }
 
+function hasAny(text, words) {
+  return words.some(word => text.includes(word));
+}
+
 function detectWorkstream(files) {
   const joined = files.map(file => normalizeText(file.name)).join(' ');
 
-  if (joined.includes('finance') || joined.includes('invoice') || joined.includes('billing')) {
+  if (hasAny(joined, ['finance', 'invoice', 'billing', 'ledger', 'accounts'])) {
     return 'Finance and operations advisory';
   }
 
-  if (joined.includes('crm') || joined.includes('sales') || joined.includes('customer')) {
+  if (hasAny(joined, ['crm', 'sales', 'customer', 'marketing', 'case'])) {
     return 'Customer engagement transformation';
   }
 
-  if (joined.includes('warehouse') || joined.includes('supply') || joined.includes('inventory')) {
+  if (hasAny(joined, ['warehouse', 'supply', 'inventory', 'procurement', 'logistics'])) {
     return 'Supply chain and operations';
   }
 
-  if (joined.includes('hr') || joined.includes('talent') || joined.includes('people')) {
+  if (hasAny(joined, ['hr', 'talent', 'people', 'payroll', 'workforce'])) {
     return 'Human resources enablement';
   }
 
@@ -47,7 +51,7 @@ function determineReadiness(files) {
     return 'Awaiting input';
   }
 
-  if (files.length >= 5) {
+  if (files.length >= 6) {
     return 'Draft response can be structured';
   }
 
@@ -58,67 +62,116 @@ function determineReadiness(files) {
   return 'More source material recommended';
 }
 
+function buildMissingSignals(files) {
+  const joined = files.map(file => normalizeText(file.name)).join(' ');
+  const missing = [];
+
+  if (!hasAny(joined, ['scope', 'statement-of-work', 'sow', 'deliverable'])) {
+    missing.push('scope detail');
+  }
+
+  if (!hasAny(joined, ['timeline', 'plan', 'milestone', 'schedule'])) {
+    missing.push('timeline guidance');
+  }
+
+  if (!hasAny(joined, ['pricing', 'price', 'cost', 'commercial', 'budget'])) {
+    missing.push('commercial detail');
+  }
+
+  if (!hasAny(joined, ['requirement', 'requirements', 'matrix', 'compliance'])) {
+    missing.push('requirement structure');
+  }
+
+  if (!hasAny(joined, ['architecture', 'solution', 'design'])) {
+    missing.push('solution framing');
+  }
+
+  return missing.slice(0, 4);
+}
+
+function inferDetectedSignals(files) {
+  const joined = files.map(file => normalizeText(file.name)).join(' ');
+  const extensions = unique(files.map(file => getExtension(file.name)).filter(Boolean));
+  const signals = [];
+
+  if (extensions.includes('xlsx') || extensions.includes('xls')) {
+    signals.push('Tabular input likely present');
+  }
+
+  if (extensions.includes('pptx') || extensions.includes('ppt')) {
+    signals.push('Stakeholder storyline material likely present');
+  }
+
+  if (extensions.includes('docx') || extensions.includes('doc') || extensions.includes('pdf')) {
+    signals.push('Formal procurement wording likely present');
+  }
+
+  if (hasAny(joined, ['pricing', 'price', 'cost', 'budget'])) {
+    signals.push('Commercial signal detected');
+  }
+
+  if (hasAny(joined, ['timeline', 'plan', 'milestone'])) {
+    signals.push('Timeline signal detected');
+  }
+
+  if (hasAny(joined, ['requirement', 'requirements', 'matrix', 'compliance'])) {
+    signals.push('Requirement structure signal detected');
+  }
+
+  if (hasAny(joined, ['scope', 'sow', 'deliverable'])) {
+    signals.push('Scope signal detected');
+  }
+
+  return signals;
+}
+
 function buildExecutiveSummary(files, workstream, readiness, missingSignals) {
   const fileCount = files.length;
   const types = unique(files.map(file => getExtension(file.name)).filter(Boolean));
-
   const typeText = types.length
-    ? `The uploaded package includes ${types.join(', ').toUpperCase()} material`
-    : 'The uploaded package includes a limited set of source material';
+    ? `The intake includes ${types.join(', ').toUpperCase()} material`
+    : 'The intake includes a limited range of source material';
 
   const gapText = missingSignals.length
-    ? `The current intake still appears to be missing ${missingSignals.slice(0, 2).join(' and ')}.`
-    : 'The current intake contains enough signal to begin a first response structure.';
+    ? `Key proposal signals still appear weak, especially around ${missingSignals.slice(0, 2).join(' and ')}.`
+    : 'The available source set provides a reasonable baseline for shaping the first structured response.';
 
-  return `The uploaded material indicates a ${workstream.toLowerCase()} opportunity with ${fileCount} source document${fileCount === 1 ? '' : 's'}. ${typeText}, which suggests a mixed proposal workflow rather than a single-source request. Current readiness is assessed as "${readiness}", meaning the team can begin structured response planning while continuing to refine scope, assumptions, and delivery framing. ${gapText}`;
+  return `The submitted package suggests a ${workstream.toLowerCase()} opportunity based on the uploaded file set and naming patterns. ${typeText}, which indicates that the response effort will likely span several proposal workstreams rather than a single isolated document track. Current readiness is assessed as "${readiness}", so the team can begin a first structured response while still validating assumptions, extracting detailed requirements, and tightening scope interpretation. ${gapText}`;
 }
 
 function buildScopeSignals(files, workstream) {
   const extensions = unique(files.map(file => getExtension(file.name)).filter(Boolean));
-  const signals = [];
-
-  signals.push({
-    title: 'Primary workstream',
-    text: `The uploaded material points to a likely workstream of ${workstream.toLowerCase()}.`
-  });
+  const signals = [
+    {
+      title: 'Primary workstream',
+      text: `The current intake most closely aligns with ${workstream.toLowerCase()}.`
+    },
+    {
+      title: 'Review posture',
+      text: 'The package appears suitable for first-pass triage, categorization, and proposal planning before deeper requirement-by-requirement analysis.'
+    }
+  ];
 
   if (extensions.length) {
     signals.push({
       title: 'Document mix',
-      text: `The intake includes ${extensions.join(', ').toUpperCase()} files, which suggests collaboration across commercial, functional, and supporting workstreams.`
+      text: `The intake includes ${extensions.join(', ').toUpperCase()} files, which suggests a cross-functional response process with both narrative and structured inputs.`
     });
   }
 
-  const hasSpreadsheet = extensions.includes('xlsx') || extensions.includes('xls');
-  const hasPresentation = extensions.includes('pptx') || extensions.includes('ppt');
-  const hasWord = extensions.includes('docx') || extensions.includes('doc');
-  const hasPdf = extensions.includes('pdf');
-
-  if (hasSpreadsheet) {
+  if (extensions.includes('xlsx') || extensions.includes('xls')) {
     signals.push({
-      title: 'Structured input material',
-      text: 'Spreadsheet-based material indicates tabular requirements, scoring models, price structures, or requirement matrices may be part of the opportunity.'
+      title: 'Structured attachments',
+      text: 'Spreadsheet material often indicates scoring models, requirement matrices, pricing structures, or implementation trackers.'
     });
   }
 
-  if (hasPresentation) {
+  if (extensions.includes('pdf') || extensions.includes('docx') || extensions.includes('doc')) {
     signals.push({
-      title: 'Stakeholder communication signal',
-      text: 'Presentation material often suggests prior internal review, steering input, or storyline work that can support a tailored proposal narrative.'
+      title: 'Formal requirements pattern',
+      text: 'Document-led intake usually indicates formal language that should be tracked into the response outline and compliance view.'
     });
   }
-
-  if (hasWord || hasPdf) {
-    signals.push({
-      title: 'Formal procurement signal',
-      text: 'Document-heavy intake suggests formal requirement wording, governance language, or qualification criteria that should be reflected in the response structure.'
-    });
-  }
-
-  signals.push({
-    title: 'Review approach',
-    text: 'The current submission appears suitable for first-pass intake, categorization, and response planning before detailed requirement mapping.'
-  });
 
   return signals.slice(0, 5);
 }
@@ -130,79 +183,51 @@ function buildRiskFlags(files, missingSignals) {
   if (files.length <= 2) {
     flags.push({
       title: 'Limited source coverage',
-      text: 'Only a small amount of source material is available, which may reduce confidence in scope interpretation.'
+      text: 'A small number of uploaded files reduces confidence in initial scope interpretation and may hide annexes or qualification material.'
     });
   }
 
   if (totalSize < 150000) {
     flags.push({
-      title: 'Metadata-only assessment risk',
-      text: 'The intake appears lightweight, which can indicate that important annexes, qualification criteria, or pricing attachments are still missing.'
+      title: 'Light intake package',
+      text: 'The total size of uploaded material is small, which can indicate that key appendices or supporting content are still missing.'
     });
   }
 
   if (missingSignals.length) {
     flags.push({
-      title: 'Missing proposal signals',
-      text: `The current intake does not strongly indicate ${missingSignals.join(', ')}, so the first response structure should include explicit assumptions.`
+      title: 'Incomplete response basis',
+      text: `The intake does not yet strongly indicate ${missingSignals.join(', ')}, so early drafts should clearly distinguish confirmed facts from assumptions.`
     });
   }
 
   flags.push({
-    title: 'Process mapping still provisional',
-    text: 'Any process catalog alignment at this stage should be treated as directional until full requirement extraction and stakeholder review are completed.'
+    title: 'Catalog mapping is provisional',
+    text: 'Process alignment at this stage should be treated as directional until requirement extraction and solution review are completed.'
   });
 
   return flags.slice(0, 4);
 }
 
 function buildRecommendedActions(files, readiness) {
-  const actions = [];
-
-  actions.push({
-    title: 'Create first response outline',
-    text: `Use the current intake to create a structured proposal outline aligned to the readiness state: ${readiness.toLowerCase()}.`
-  });
-
-  actions.push({
-    title: 'Perform requirement decomposition',
-    text: 'Break the source material into explicit requirements, assumptions, dependencies, and qualification criteria before drafting detailed answers.'
-  });
-
-  actions.push({
-    title: 'Prepare process catalog mapping',
-    text: 'Map the identified business needs to Microsoft business process areas and business processes to distinguish standard fit from customer-specific extensions.'
-  });
-
-  actions.push({
-    title: 'Shape customer-facing narrative',
-    text: 'Prepare a customer-specific proposal page that turns the intake summary into a solution story, delivery framing, and recommended next steps.'
-  });
-
-  return actions;
-}
-
-function buildMissingSignals(files) {
-  const joined = files.map(file => normalizeText(file.name)).join(' ');
-  const missing = [];
-
-  if (!joined.includes('scope')) {
-    missing.push('scope detail');
-  }
-
-  if (!joined.includes('timeline') && !joined.includes('plan')) {
-    missing.push('timeline guidance');
-  }
-
-  if (!joined.includes('pricing') && !joined.includes('cost')) {
-    missing.push('commercial detail');
-  }
-
-  if (!joined.includes('requirement') && !joined.includes('matrix')) {
-    missing.push('requirement structure');
-  }
-
-  return missing.slice(0, 3);
+  return [
+    {
+      title: 'Create first response structure',
+      text: `Prepare an initial proposal skeleton aligned to the current readiness state: ${readiness.toLowerCase()}.`
+    },
+    {
+      title: 'Extract explicit requirements',
+      text: 'Break the available material into trackable requirements, assumptions, dependencies, and review questions.'
+    },
+    {
+      title: 'Build a gap view',
+      text: 'Separate confirmed fit, likely gaps, and open items before the writing team starts detailed response production.'
+    },
+    {
+      title: 'Map business process relevance',
+      text: 'Relate the request to Microsoft business process areas and business processes to frame standard fit versus customer-specific needs.'
+    }
+  ];
 }
 
 function buildCatalogMatches(workstream) {
@@ -211,13 +236,13 @@ function buildCatalogMatches(workstream) {
       level: 'Level 2',
       type: 'Business process area',
       name: 'Create and manage sales',
-      rationale: 'The intake indicates a commercial opportunity where customer demand, qualification, shaping, and response framing are central.'
+      rationale: 'The opportunity appears to involve qualification, shaping, and commercial response planning.'
     },
     {
       level: 'Level 3',
       type: 'Business process',
       name: 'Sell products to customers',
-      rationale: 'The opportunity appears to require a structured proposal flow that supports qualification, offer shaping, and commercial response.'
+      rationale: 'This provides a reasonable starting point for proposal-oriented process mapping.'
     }
   ];
 
@@ -226,14 +251,14 @@ function buildCatalogMatches(workstream) {
       {
         level: 'Level 2',
         type: 'Business process area',
-        name: 'Process vendor invoices',
-        rationale: 'The source naming pattern suggests finance-oriented process work with likely emphasis on invoice, accounting, or operational controls.'
+        name: 'Record and report financial transactions',
+        rationale: 'The intake suggests finance-oriented activities and likely operational control requirements.'
       },
       {
         level: 'Level 3',
         type: 'Business process',
-        name: 'Record invoice details',
-        rationale: 'This is a directional starting point for mapping detailed requirements to standard business process definitions.'
+        name: 'Manage general ledger',
+        rationale: 'This is a useful directional baseline for mapping finance-driven requirement themes.'
       }
     ];
   }
@@ -244,13 +269,47 @@ function buildCatalogMatches(workstream) {
         level: 'Level 2',
         type: 'Business process area',
         name: 'Create and manage sales',
-        rationale: 'The intake signals customer-facing, sales, or CRM-oriented requirements that fit this process area.'
+        rationale: 'The intake appears to focus on customer-facing processes, opportunity shaping, and commercial engagement.'
       },
       {
         level: 'Level 3',
         type: 'Business process',
-        name: 'Sell products to customers',
-        rationale: 'This process offers a practical baseline for mapping customer engagement requirements to standard process patterns.'
+        name: 'Manage sales opportunities',
+        rationale: 'This process is a practical anchor for early-stage CRM and customer engagement mapping.'
+      }
+    ];
+  }
+
+  if (workstream === 'Supply chain and operations') {
+    return [
+      {
+        level: 'Level 2',
+        type: 'Business process area',
+        name: 'Plan and source supply',
+        rationale: 'The source naming suggests fulfillment, inventory, or sourcing-related requirements.'
+      },
+      {
+        level: 'Level 3',
+        type: 'Business process',
+        name: 'Manage inventory',
+        rationale: 'This provides a useful first hypothesis for operational process alignment.'
+      }
+    ];
+  }
+
+  if (workstream === 'Human resources enablement') {
+    return [
+      {
+        level: 'Level 2',
+        type: 'Business process area',
+        name: 'Manage organization and people',
+        rationale: 'The intake suggests employee, workforce, or HR-related process themes.'
+      },
+      {
+        level: 'Level 3',
+        type: 'Business process',
+        name: 'Manage employee information',
+        rationale: 'This offers a directional baseline for HR-oriented requirement mapping.'
       }
     ];
   }
@@ -262,23 +321,213 @@ function buildProposalPageSections(workstream, readiness) {
   return [
     {
       title: 'Customer context',
-      text: `Introduce the customer situation, key drivers, and why ${workstream.toLowerCase()} appears to be the relevant framing for this opportunity.`
+      text: `Summarize the customer situation and explain why ${workstream.toLowerCase()} is the best current framing of the opportunity.`
+    },
+    {
+      title: 'Business needs and response themes',
+      text: 'Translate intake findings into the primary business needs, response themes, and likely decision drivers.'
     },
     {
       title: 'Proposed solution direction',
-      text: 'Describe the recommended Microsoft-oriented solution shape, including standard capabilities, likely accelerators, and expected delivery framing.'
+      text: 'Describe the expected Microsoft-oriented solution shape, including standard capabilities, accelerators, and likely boundary conditions.'
     },
     {
-      title: 'Process alignment',
-      text: 'Show how the request maps to relevant business process areas, business processes, and where customer-specific variation is likely required.'
+      title: 'Process alignment and scope',
+      text: 'Show how the opportunity maps to business process areas and where further scope clarification is still required.'
     },
     {
-      title: 'Delivery approach',
-      text: `Position the next delivery step around the current readiness state: ${readiness.toLowerCase()}, with phased review and clarification where needed.`
+      title: 'Delivery approach and next steps',
+      text: `Position the recommended next actions around the current readiness state: ${readiness.toLowerCase()}.`
+    }
+  ];
+}
+
+function buildRequirements(files, workstream, missingSignals) {
+  const joined = files.map(file => normalizeText(file.name)).join(' ');
+  const requirements = [];
+
+  requirements.push({
+    id: 'REQ-001',
+    title: 'Structured intake review',
+    priority: 'High',
+    status: 'Inferred',
+    source: 'File set and naming pattern',
+    text: 'The opportunity requires a structured review of uploaded source material before detailed response drafting begins.'
+  });
+
+  if (hasAny(joined, ['requirement', 'requirements', 'matrix', 'compliance'])) {
+    requirements.push({
+      id: 'REQ-002',
+      title: 'Requirement traceability',
+      priority: 'High',
+      status: 'Detected',
+      source: 'Requirement-related naming signal',
+      text: 'The response should support explicit tracking between stated customer requirements and proposed answers.'
+    });
+  } else {
+    requirements.push({
+      id: 'REQ-002',
+      title: 'Requirement traceability',
+      priority: 'Medium',
+      status: 'Assumed',
+      source: 'Typical proposal governance need',
+      text: 'A traceable requirement structure will likely be needed even if it is not yet clearly visible in the current intake.'
+    });
+  }
+
+  if (hasAny(joined, ['pricing', 'price', 'cost', 'budget'])) {
+    requirements.push({
+      id: 'REQ-003',
+      title: 'Commercial response input',
+      priority: 'High',
+      status: 'Detected',
+      source: 'Commercial naming signal',
+      text: 'The proposal should allow for commercial framing, pricing assumptions, or cost-related qualification.'
+    });
+  } else if (missingSignals.includes('commercial detail')) {
+    requirements.push({
+      id: 'REQ-003',
+      title: 'Commercial response input',
+      priority: 'Medium',
+      status: 'Gap',
+      source: 'Missing intake signal',
+      text: 'Commercial detail is not yet sufficiently represented in the uploaded material.'
+    });
+  }
+
+  requirements.push({
+    id: 'REQ-004',
+    title: 'Process-based scope framing',
+    priority: 'High',
+    status: 'Inferred',
+    source: workstream,
+    text: `The opportunity should be framed against relevant process areas for ${workstream.toLowerCase()} to support fit-gap discussion and proposal structure.`
+  });
+
+  if (hasAny(joined, ['timeline', 'plan', 'milestone', 'schedule'])) {
+    requirements.push({
+      id: 'REQ-005',
+      title: 'Delivery planning visibility',
+      priority: 'Medium',
+      status: 'Detected',
+      source: 'Timeline naming signal',
+      text: 'The response should account for delivery sequencing, milestones, or implementation planning.'
+    });
+  } else {
+    requirements.push({
+      id: 'REQ-005',
+      title: 'Delivery planning visibility',
+      priority: 'Medium',
+      status: 'Assumed',
+      source: 'Typical delivery expectation',
+      text: 'A phased delivery view will likely be expected even if the current intake does not yet state it explicitly.'
+    });
+  }
+
+  return requirements;
+}
+
+function buildAssumptions(files, missingSignals) {
+  const assumptions = [];
+
+  assumptions.push({
+    title: 'Metadata-led analysis',
+    text: 'This version of the analysis primarily interprets file metadata, naming patterns, and intake composition rather than full document contents.'
+  });
+
+  if (missingSignals.includes('scope detail')) {
+    assumptions.push({
+      title: 'Scope still provisional',
+      text: 'Detailed scope boundaries are assumed to require clarification before final proposal writing begins.'
+    });
+  }
+
+  if (missingSignals.includes('commercial detail')) {
+    assumptions.push({
+      title: 'Commercial structure to be confirmed',
+      text: 'Pricing, commercials, or budget framing may exist outside the current uploaded package.'
+    });
+  }
+
+  if (missingSignals.includes('timeline guidance')) {
+    assumptions.push({
+      title: 'Delivery phasing not yet confirmed',
+      text: 'Implementation timing and milestone expectations are not yet strongly evidenced in the intake.'
+    });
+  }
+
+  assumptions.push({
+    title: 'Human review remains required',
+    text: 'Any inferred fit-gap or process alignment should be validated by proposal and solution stakeholders.'
+  });
+
+  return assumptions.slice(0, 5);
+}
+
+function buildGaps(files, missingSignals) {
+  const gaps = [];
+
+  missingSignals.forEach((signal, index) => {
+    gaps.push({
+      id: `GAP-00${index + 1}`,
+      area: signal,
+      severity: index === 0 ? 'High' : 'Medium',
+      impact: `The current intake does not provide strong evidence for ${signal}, which limits confidence in the first response baseline.`,
+      recommendation: `Request or locate additional material that clarifies ${signal} before the proposal is finalized.`
+    });
+  });
+
+  if (!gaps.length) {
+    gaps.push({
+      id: 'GAP-001',
+      area: 'Detailed requirement extraction',
+      severity: 'Low',
+      impact: 'The intake appears reasonably complete for a first pass, but detailed requirement decomposition is still needed.',
+      recommendation: 'Proceed to requirement-by-requirement extraction and response mapping.'
+    });
+  }
+
+  return gaps.slice(0, 4);
+}
+
+function buildEvaluationFocus(files, workstream) {
+  return [
+    {
+      title: 'Scope confidence',
+      text: `Test whether the uploaded material provides enough evidence to frame a reliable ${workstream.toLowerCase()} response narrative.`
     },
     {
-      title: 'Assumptions and next steps',
-      text: 'List key assumptions, open questions, and the follow-up actions needed before creating a full customer response and proposal page.'
+      title: 'Requirement traceability',
+      text: 'Check whether all explicit and inferred requirements can be mapped into a controlled response structure.'
+    },
+    {
+      title: 'Commercial and delivery completeness',
+      text: 'Assess whether the intake supports pricing, timing, assumptions, and delivery planning with enough clarity.'
+    }
+  ];
+}
+
+function buildResponseOutline(workstream, readiness) {
+  return [
+    {
+      section: '1. Executive framing',
+      text: `Introduce the opportunity as a ${workstream.toLowerCase()} case and explain the customer context.`
+    },
+    {
+      section: '2. Customer needs and interpreted requirements',
+      text: 'Summarize explicit requirements, inferred needs, and confirmed business drivers.'
+    },
+    {
+      section: '3. Solution fit and process alignment',
+      text: 'Explain likely standard fit, process relevance, and where additional clarification is still needed.'
+    },
+    {
+      section: '4. Assumptions, risks, and gaps',
+      text: 'Distinguish confirmed content from assumptions and unresolved gaps.'
+    },
+    {
+      section: '5. Delivery approach and next steps',
+      text: `Recommend the next proposal actions based on the readiness state: ${readiness.toLowerCase()}.`
     }
   ];
 }
@@ -286,24 +535,24 @@ function buildProposalPageSections(workstream, readiness) {
 function buildFeed(files, workstream, readiness) {
   return [
     {
-      title: 'Intake registered',
-      text: `${files.length} file${files.length === 1 ? '' : 's'} were received by the analysis endpoint and converted into a normalized intake payload.`
+      title: 'Intake normalized',
+      text: `${files.length} uploaded file${files.length === 1 ? '' : 's'} were converted into a normalized analysis payload.`
     },
     {
-      title: 'Workstream interpreted',
-      text: `The submission was categorized as ${workstream.toLowerCase()} based on naming patterns, file mix, and opportunity context.`
+      title: 'Opportunity framing completed',
+      text: `The intake was categorized as ${workstream.toLowerCase()} based on available source signals.`
     },
     {
       title: 'Readiness estimated',
-      text: `The current intake was assessed as "${readiness}", which helps determine whether the next step should focus on shaping, clarification, or draft creation.`
+      text: `The package was assessed as "${readiness}" for proposal progression.`
     },
     {
-      title: 'Catalog mapping prepared',
-      text: 'A provisional mapping was assembled to support later comparison against Microsoft Business Process Catalog process areas and business processes.'
+      title: 'Requirement and gap pass prepared',
+      text: 'A first inferred requirement set and gap view were generated to support response planning.'
     },
     {
-      title: 'Proposal page basis created',
-      text: 'The response also includes structured section suggestions that can later be used to generate a customer-specific proposal or case page.'
+      title: 'Proposal structure drafted',
+      text: 'A first response outline and customer-facing page structure were prepared from the intake analysis.'
     }
   ];
 }
@@ -332,10 +581,22 @@ app.http('analyze', {
       const workstream = detectWorkstream(safeFiles);
       const readiness = determineReadiness(safeFiles);
       const missingSignals = buildMissingSignals(safeFiles);
+      const detectedSignals = inferDetectedSignals(safeFiles);
 
       const response = {
         ok: true,
         timestamp: new Date().toISOString(),
+        workflow: {
+          pattern: 'Sequential analysis pipeline',
+          stages: [
+            'Intake normalization',
+            'Signal detection',
+            'Requirement inference',
+            'Gap assessment',
+            'Process mapping',
+            'Response shaping'
+          ]
+        },
         summary: {
           documentCount: safeFiles.length,
           workstream,
@@ -347,6 +608,17 @@ app.http('analyze', {
         recommendedActions: buildRecommendedActions(safeFiles, readiness),
         catalogMatches: buildCatalogMatches(workstream),
         proposalPageSections: buildProposalPageSections(workstream, readiness),
+        requirements: buildRequirements(safeFiles, workstream, missingSignals),
+        assumptions: buildAssumptions(safeFiles, missingSignals),
+        gaps: buildGaps(safeFiles, missingSignals),
+        evaluationFocus: buildEvaluationFocus(safeFiles, workstream),
+        responseOutline: buildResponseOutline(workstream, readiness),
+        intakeDiagnostics: {
+          detectedSignals,
+          missingSignals,
+          fileTypes: unique(safeFiles.map(file => getExtension(file.name)).filter(Boolean)),
+          totalBytes: safeFiles.reduce((sum, file) => sum + file.size, 0)
+        },
         feed: buildFeed(safeFiles, workstream, readiness)
       };
 
