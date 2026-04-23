@@ -350,7 +350,7 @@ function buildRequirements(files, workstream, missingSignals) {
     id: 'REQ-001',
     title: 'Structured intake review',
     priority: 'High',
-    status: 'Inferred',
+    status: 'Detected',
     source: 'File set and naming pattern',
     text: 'The opportunity requires a structured review of uploaded source material before detailed response drafting begins.'
   });
@@ -399,7 +399,7 @@ function buildRequirements(files, workstream, missingSignals) {
     id: 'REQ-004',
     title: 'Process-based scope framing',
     priority: 'High',
-    status: 'Inferred',
+    status: 'Detected',
     source: workstream,
     text: `The opportunity should be framed against relevant process areas for ${workstream.toLowerCase()} to support fit-gap discussion and proposal structure.`
   });
@@ -421,6 +421,17 @@ function buildRequirements(files, workstream, missingSignals) {
       status: 'Assumed',
       source: 'Typical delivery expectation',
       text: 'A phased delivery view will likely be expected even if the current intake does not yet state it explicitly.'
+    });
+  }
+
+  if (missingSignals.includes('solution framing')) {
+    requirements.push({
+      id: 'REQ-006',
+      title: 'Solution framing',
+      priority: 'Medium',
+      status: 'Needs review',
+      source: 'Missing intake signal',
+      text: 'A clear solution framing should be established before the final proposal structure is approved.'
     });
   }
 
@@ -532,6 +543,85 @@ function buildResponseOutline(workstream, readiness) {
   ];
 }
 
+function mapRequirementToResponseSection(requirement) {
+  const title = normalizeText(requirement.title);
+
+  if (title.includes('intake') || title.includes('traceability')) {
+    return '2. Customer needs and interpreted requirements';
+  }
+
+  if (title.includes('commercial')) {
+    return '5. Delivery approach and next steps';
+  }
+
+  if (title.includes('process')) {
+    return '3. Solution fit and process alignment';
+  }
+
+  if (title.includes('delivery')) {
+    return '5. Delivery approach and next steps';
+  }
+
+  if (title.includes('solution')) {
+    return '3. Solution fit and process alignment';
+  }
+
+  return '2. Customer needs and interpreted requirements';
+}
+
+function mapOwner(requirement) {
+  const title = normalizeText(requirement.title);
+
+  if (title.includes('commercial')) {
+    return 'Bid lead';
+  }
+
+  if (title.includes('process') || title.includes('solution')) {
+    return 'Solution architect';
+  }
+
+  if (title.includes('delivery')) {
+    return 'Delivery lead';
+  }
+
+  return 'Proposal manager';
+}
+
+function mapCompliance(requirement) {
+  if (requirement.status === 'Detected') {
+    return 'Y';
+  }
+
+  if (requirement.status === 'Assumed' || requirement.status === 'Needs review') {
+    return 'P';
+  }
+
+  return 'N';
+}
+
+function buildComplianceMatrix(requirements) {
+  return requirements.map((requirement, index) => ({
+    rowId: `CM-${String(index + 1).padStart(3, '0')}`,
+    requirementId: requirement.id,
+    requirementTitle: requirement.title,
+    requirementText: requirement.text,
+    source: requirement.source,
+    priority: requirement.priority,
+    status: requirement.status,
+    proposalSection: mapRequirementToResponseSection(requirement),
+    owner: mapOwner(requirement),
+    compliance: mapCompliance(requirement),
+    responseAction:
+      requirement.status === 'Detected'
+        ? 'Use detected intake signal as basis for first draft response.'
+        : requirement.status === 'Assumed'
+          ? 'Confirm assumption with stakeholders and draft provisional response.'
+          : requirement.status === 'Needs review'
+            ? 'Review with solution team before finalizing proposal structure.'
+            : 'Treat as open gap and request clarification or supporting evidence.'
+  }));
+}
+
 function buildFeed(files, workstream, readiness) {
   return [
     {
@@ -551,8 +641,8 @@ function buildFeed(files, workstream, readiness) {
       text: 'A first inferred requirement set and gap view were generated to support response planning.'
     },
     {
-      title: 'Proposal structure drafted',
-      text: 'A first response outline and customer-facing page structure were prepared from the intake analysis.'
+      title: 'Compliance matrix prepared',
+      text: 'Each inferred requirement was mapped to a draft proposal section, owner, and compliance posture.'
     }
   ];
 }
@@ -583,6 +673,13 @@ app.http('analyze', {
       const missingSignals = buildMissingSignals(safeFiles);
       const detectedSignals = inferDetectedSignals(safeFiles);
 
+      const requirements = buildRequirements(safeFiles, workstream, missingSignals);
+      const assumptions = buildAssumptions(safeFiles, missingSignals);
+      const gaps = buildGaps(safeFiles, missingSignals);
+      const evaluationFocus = buildEvaluationFocus(safeFiles, workstream);
+      const responseOutline = buildResponseOutline(workstream, readiness);
+      const complianceMatrix = buildComplianceMatrix(requirements);
+
       const response = {
         ok: true,
         timestamp: new Date().toISOString(),
@@ -594,6 +691,7 @@ app.http('analyze', {
             'Requirement inference',
             'Gap assessment',
             'Process mapping',
+            'Compliance preparation',
             'Response shaping'
           ]
         },
@@ -608,11 +706,12 @@ app.http('analyze', {
         recommendedActions: buildRecommendedActions(safeFiles, readiness),
         catalogMatches: buildCatalogMatches(workstream),
         proposalPageSections: buildProposalPageSections(workstream, readiness),
-        requirements: buildRequirements(safeFiles, workstream, missingSignals),
-        assumptions: buildAssumptions(safeFiles, missingSignals),
-        gaps: buildGaps(safeFiles, missingSignals),
-        evaluationFocus: buildEvaluationFocus(safeFiles, workstream),
-        responseOutline: buildResponseOutline(workstream, readiness),
+        requirements,
+        assumptions,
+        gaps,
+        evaluationFocus,
+        responseOutline,
+        complianceMatrix,
         intakeDiagnostics: {
           detectedSignals,
           missingSignals,
