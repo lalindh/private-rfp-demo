@@ -4,6 +4,7 @@
   --surface:#111830;
   --surface-2:#151d39;
   --surface-3:#1a2343;
+  --surface-4:#20294a;
   --border:rgba(255,255,255,.10);
   --border-strong:rgba(122,162,255,.35);
   --text:#f5f7fb;
@@ -71,8 +72,20 @@ textarea{
   z-index:10;
 }
 
+.sr-only{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}
+
 .page{
-  width:min(1280px,calc(100% - 2rem));
+  width:min(1380px,calc(100% - 2rem));
   margin:0 auto;
   padding:clamp(1.5rem,4vw,4rem) 0 4rem;
 }
@@ -112,7 +125,7 @@ textarea{
 }
 
 .lede{
-  max-width:58ch;
+  max-width:64ch;
   margin:1.25rem 0 0;
   color:var(--muted);
   font-size:clamp(1.05rem,1.6vw,1.2rem);
@@ -659,6 +672,16 @@ textarea{
   align-items:end;
 }
 
+.matrix-toolbar-stacked{
+  grid-template-columns:1fr;
+}
+
+.matrix-subfilters{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:1rem;
+}
+
 .matrix-filters{
   display:flex;
   flex-wrap:wrap;
@@ -694,32 +717,18 @@ textarea{
   text-transform:uppercase;
 }
 
-.search-input,
-.table-input,
-.table-select,
-.table-textarea{
+.search-input{
   width:100%;
-  border-radius:12px;
+  min-height:46px;
+  border-radius:14px;
   border:1px solid var(--border);
   background:rgba(255,255,255,.03);
   color:var(--text);
-  padding:.7rem .8rem;
+  padding:0 .95rem;
   outline:none;
 }
 
-.search-input{
-  min-height:46px;
-}
-
-.table-textarea{
-  min-height:88px;
-  resize:vertical;
-}
-
-.search-input:focus,
-.table-input:focus,
-.table-select:focus,
-.table-textarea:focus{
+.search-input:focus{
   border-color:rgba(122,162,255,.32);
   box-shadow:0 0 0 4px rgba(79,140,255,.08);
 }
@@ -736,9 +745,12 @@ textarea{
 
 .compliance-table{
   width:100%;
-  min-width:1550px;
   border-collapse:collapse;
   background:rgba(255,255,255,.02);
+}
+
+.compliance-table-advanced{
+  min-width:1880px;
 }
 
 .compliance-table th,
@@ -767,22 +779,6 @@ textarea{
 
 .compliance-table td strong{
   color:var(--text);
-}
-
-.compliance-table-editable td{
-  min-width:140px;
-}
-
-.compliance-table-editable td:nth-child(2){
-  min-width:280px;
-}
-
-.compliance-table-editable td:nth-child(10){
-  min-width:260px;
-}
-
-.compliance-table-editable td:last-child{
-  min-width:220px;
 }
 
 .badge{
@@ -817,24 +813,40 @@ textarea{
   color:#ffd68a;
 }
 
-.badge-review-not-started{
-  background:rgba(255,255,255,.10);
-  color:#d7dcef;
-}
-
-.badge-review-in-review{
-  background:rgba(122,162,255,.14);
-  color:#9fbaff;
-}
-
-.badge-review-reviewed{
+.badge-fit-standard-fit{
   background:rgba(99,211,156,.14);
   color:#9bf0c3;
 }
 
-.badge-review-blocked{
+.badge-fit-configuration-fit{
+  background:rgba(122,162,255,.14);
+  color:#9fbaff;
+}
+
+.badge-fit-integration-gap,
+.badge-fit-extension-gap{
   background:rgba(255,142,142,.14);
   color:#ffb3b3;
+}
+
+.badge-fit-unclear{
+  background:rgba(240,195,106,.14);
+  color:#ffd68a;
+}
+
+.badge-confidence-high{
+  background:rgba(99,211,156,.14);
+  color:#9bf0c3;
+}
+
+.badge-confidence-medium{
+  background:rgba(122,162,255,.14);
+  color:#9fbaff;
+}
+
+.badge-confidence-low{
+  background:rgba(240,195,106,.14);
+  color:#ffd68a;
 }
 
 .badge-yn-y{
@@ -852,47 +864,14 @@ textarea{
   color:#ffb3b3;
 }
 
-.table-meta{
+.table-stack{
   display:grid;
-  gap:.55rem;
+  gap:.45rem;
 }
 
-.table-inline{
-  display:flex;
-  align-items:center;
-  gap:.55rem;
-  flex-wrap:wrap;
-}
-
-.table-help{
+.table-mini{
+  font-size:.84rem;
   color:var(--faint);
-  font-size:.82rem;
-}
-
-.date-state{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:.28rem .5rem;
-  border-radius:999px;
-  font-size:.76rem;
-  font-weight:700;
-  letter-spacing:.02em;
-}
-
-.date-state-overdue{
-  color:#ffb3b3;
-  background:rgba(255,142,142,.14);
-}
-
-.date-state-soon{
-  color:#ffd68a;
-  background:rgba(240,195,106,.14);
-}
-
-.date-state-ok{
-  color:#9bf0c3;
-  background:rgba(99,211,156,.14);
 }
 
 @keyframes spin{
@@ -910,7 +889,7 @@ textarea{
   .report-deep-grid,
   .report-hero,
   .diagnostic-grid,
-  .matrix-toolbar{
+  .matrix-subfilters{
     grid-template-columns:1fr;
   }
 }
