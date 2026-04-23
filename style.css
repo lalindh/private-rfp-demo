@@ -66,7 +66,7 @@ button{
 }
 
 .page{
-  width:min(1120px,calc(100% - 2rem));
+  width:min(1180px,calc(100% - 2rem));
   margin:0 auto;
   padding:clamp(1.5rem,4vw,4rem) 0 4rem;
 }
@@ -160,7 +160,8 @@ button{
 .status-card,
 .report-block,
 .hero-meta-card,
-.loading-panel{
+.loading-panel,
+.diagnostic-card{
   background:linear-gradient(180deg,var(--surface),var(--surface-2));
   border:1px solid var(--border);
   border-radius:var(--radius);
@@ -271,7 +272,8 @@ button{
 .result-card,
 .card,
 .report-block,
-.hero-meta-card{
+.hero-meta-card,
+.diagnostic-card{
   padding:1.25rem;
 }
 
@@ -406,7 +408,7 @@ button{
 
 .report-hero{
   display:grid;
-  grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);
+  grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr);
   gap:1rem;
   align-items:stretch;
 }
@@ -439,15 +441,20 @@ button{
   gap:1rem;
 }
 
-.report-body-grid{
+.report-body-grid,
+.report-deep-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:1rem;
   margin-top:1rem;
 }
 
-.report-block-featured{
+.report-block-featured,
+.report-block-wide{
   grid-column:1 / -1;
+}
+
+.report-block-featured{
   background:
     linear-gradient(180deg, rgba(79,140,255,.08), rgba(79,140,255,.02)),
     linear-gradient(180deg,var(--surface),var(--surface-2));
@@ -513,6 +520,24 @@ button{
   background:rgba(99,211,156,.04);
 }
 
+.signal-item-requirement{
+  border-color:rgba(122,162,255,.28);
+}
+
+.signal-item-assumption{
+  border-color:rgba(255,255,255,.12);
+}
+
+.signal-item-gap{
+  border-color:rgba(255,142,142,.28);
+  background:rgba(255,142,142,.06);
+}
+
+.signal-item-outline{
+  border-color:rgba(99,211,156,.2);
+  background:rgba(99,211,156,.04);
+}
+
 .signal-meta{
   display:inline-flex;
   margin-bottom:.55rem;
@@ -569,6 +594,16 @@ button{
   flex:0 0 auto;
 }
 
+.diagnostic-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:1rem;
+}
+
+.diagnostic-card{
+  min-height:100%;
+}
+
 @keyframes spin{
   to{
     transform:rotate(360deg);
@@ -580,7 +615,9 @@ button{
   .grid,
   .report-summary-grid,
   .report-body-grid,
-  .report-hero{
+  .report-deep-grid,
+  .report-hero,
+  .diagnostic-grid{
     grid-template-columns:1fr;
   }
 }
