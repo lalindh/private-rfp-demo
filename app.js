@@ -49,18 +49,22 @@ const kpiDetected = document.getElementById('kpi-detected');
 const kpiAssumed = document.getElementById('kpi-assumed');
 const kpiGap = document.getElementById('kpi-gap');
 const kpiNeedsReview = document.getElementById('kpi-needs-review');
-const kpiReviewed = document.getElementById('kpi-reviewed');
-const kpiDueSoon = document.getElementById('kpi-due-soon');
-const kpiOverdue = document.getElementById('kpi-overdue');
-const kpiNotes = document.getElementById('kpi-notes');
+const kpiMapped = document.getElementById('kpi-mapped');
+const kpiHighConfidence = document.getElementById('kpi-high-confidence');
+const kpiUnclear = document.getElementById('kpi-unclear');
+const kpiGapCount = document.getElementById('kpi-gap-count');
 
 const matrixSearch = document.getElementById('matrix-search');
+const matrixTypeFilter = document.getElementById('matrix-type-filter');
+const matrixFitFilter = document.getElementById('matrix-fit-filter');
 const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
 
 let selectedFiles = [];
 let latestReport = null;
 let activeMatrixFilter = 'all';
 let activeMatrixSearch = '';
+let activeTypeFilter = 'all';
+let activeFitFilter = 'all';
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -135,7 +139,7 @@ function renderCatalogMatches(items) {
 
   reportCatalogMatches.innerHTML = items.map(item => `
     <div class="signal-item signal-item-catalog">
-      <span class="signal-meta">${escapeHtml(item.level || 'Catalog level')} · ${escapeHtml(item.type || 'Catalog item')}</span>
+      <span class="signal-meta">${escapeHtml(item.level || 'Scenario')} · ${escapeHtml(item.type || 'Process id')}</span>
       <strong>${escapeHtml(item.name || 'Unnamed catalog match')}</strong>
       <p>${escapeHtml(item.rationale || '')}</p>
     </div>
@@ -168,9 +172,10 @@ function renderRequirements(items) {
 
   reportRequirements.innerHTML = items.map(item => `
     <div class="signal-item signal-item-requirement">
-      <span class="signal-meta">${escapeHtml(item.id || 'REQ')} · ${escapeHtml(item.priority || 'Priority')} · ${escapeHtml(item.status || 'Status')}</span>
-      <strong>${escapeHtml(item.title || 'Untitled requirement')}</strong>
-      <p>${escapeHtml(item.text || '')}</p>
+      <span class="signal-meta">${escapeHtml(item.requirementId || 'REQ')} · ${escapeHtml(item.requirementType || 'Requirement')} · ${escapeHtml(item.fitType || 'Fit')}</span>
+      <strong>${escapeHtml(item.requirementTitle || 'Untitled requirement')}</strong>
+      <p>${escapeHtml(item.requirementText || '')}</p>
+      <p>${escapeHtml(item.processArea || '')} → ${escapeHtml(item.process || '')}</p>
     </div>
   `).join('');
 }
@@ -245,73 +250,51 @@ function statusBadgeClass(status) {
   return `badge badge-status-${normalized}`;
 }
 
-function complianceBadgeClass(value) {
-  const normalized = String(value || '').toLowerCase();
-  return `badge badge-yn-${normalized}`;
-}
-
-function reviewBadgeClass(value) {
+function fitBadgeClass(value) {
   const normalized = String(value || '').toLowerCase().replaceAll(' ', '-');
-  return `badge badge-review-${normalized}`;
+  return `badge badge-fit-${normalized}`;
 }
 
-function buildEditableComplianceMatrix(items) {
-  return (items || []).map(item => ({
-    ...item,
-    ownerEditable: item.owner || '',
-    reviewState: 'Not started',
-    dueDate: '',
-    comments: ''
-  }));
+function confidenceBadgeClass(value) {
+  const normalized = String(value || '').toLowerCase();
+  return `badge badge-confidence-${normalized}`;
 }
 
 function getFilteredComplianceItems(items) {
   return (items || []).filter(item => {
-    const matchesFilter =
+    const matchesStatus =
       activeMatrixFilter === 'all' || item.status === activeMatrixFilter;
+
+    const matchesType =
+      activeTypeFilter === 'all' || item.requirementType === activeTypeFilter;
+
+    const matchesFit =
+      activeFitFilter === 'all' || item.fitType === activeFitFilter;
 
     const searchHaystack = [
       item.requirementId,
       item.requirementTitle,
       item.requirementText,
-      item.owner,
-      item.ownerEditable,
-      item.proposalSection,
-      item.responseAction,
-      item.priority,
+      item.requirementType,
+      item.mandatoryLevel,
       item.status,
-      item.reviewState,
-      item.comments,
-      item.dueDate
+      item.fitType,
+      item.confidence,
+      item.endToEndScenario,
+      item.processArea,
+      item.process,
+      item.processId,
+      item.sourceDocument,
+      item.sourceSection,
+      item.reviewReason,
+      item.responseAction
     ].join(' ').toLowerCase();
 
     const matchesSearch =
       !activeMatrixSearch || searchHaystack.includes(activeMatrixSearch.toLowerCase());
 
-    return matchesFilter && matchesSearch;
+    return matchesStatus && matchesType && matchesFit && matchesSearch;
   });
-}
-
-function getDueDateState(dateValue) {
-  if (!dateValue) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const due = new Date(dateValue);
-  due.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.round((due - today) / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    return { label: 'Overdue', className: 'date-state date-state-overdue' };
-  }
-
-  if (diffDays <= 7) {
-    return { label: 'Due soon', className: 'date-state date-state-soon' };
-  }
-
-  return { label: 'Planned', className: 'date-state date-state-ok' };
 }
 
 function renderComplianceMatrix(items) {
@@ -322,7 +305,7 @@ function renderComplianceMatrix(items) {
   if (!filteredItems.length) {
     reportComplianceMatrix.innerHTML = `
       <tr>
-        <td colspan="11">
+        <td colspan="13">
           <div class="empty-state-text">No compliance rows match the current filter or search.</div>
         </td>
       </tr>
@@ -330,513 +313,22 @@ function renderComplianceMatrix(items) {
     return;
   }
 
-  reportComplianceMatrix.innerHTML = filteredItems.map(item => {
-    const dateState = getDueDateState(item.dueDate);
-
-    return `
-      <tr>
-        <td><strong>${escapeHtml(item.requirementId || item.rowId || '')}</strong></td>
-        <td>
-          <div class="table-meta">
-            <div>
-              <strong>${escapeHtml(item.requirementTitle || '')}</strong><br>
-              ${escapeHtml(item.requirementText || '')}
-            </div>
-            <span class="table-help">${escapeHtml(item.source || '')}</span>
-          </div>
-        </td>
-        <td><span class="${statusBadgeClass(item.status)}">${escapeHtml(item.status || '')}</span></td>
-        <td>${escapeHtml(item.priority || '')}</td>
-        <td><span class="${complianceBadgeClass(item.compliance)}">${escapeHtml(item.compliance || '')}</span></td>
-        <td>
-          <label class="sr-only" for="owner-${escapeHtml(item.requirementId || item.rowId || '')}">Owner</label>
-          <input
-            id="owner-${escapeHtml(item.requirementId || item.rowId || '')}"
-            class="table-input"
-            type="text"
-            value="${escapeHtml(item.ownerEditable || '')}"
-            data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
-            data-field="ownerEditable"
-            placeholder="Assign owner"
-          />
-        </td>
-        <td>${escapeHtml(item.proposalSection || '')}</td>
-        <td>
-          <div class="table-meta">
-            <span class="${reviewBadgeClass(item.reviewState)}">${escapeHtml(item.reviewState || '')}</span>
-            <label class="sr-only" for="review-${escapeHtml(item.requirementId || item.rowId || '')}">Review state</label>
-            <select
-              id="review-${escapeHtml(item.requirementId || item.rowId || '')}"
-              class="table-select"
-              data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
-              data-field="reviewState"
-            >
-              <option value="Not started" ${item.reviewState === 'Not started' ? 'selected' : ''}>Not started</option>
-              <option value="In review" ${item.reviewState === 'In review' ? 'selected' : ''}>In review</option>
-              <option value="Reviewed" ${item.reviewState === 'Reviewed' ? 'selected' : ''}>Reviewed</option>
-              <option value="Blocked" ${item.reviewState === 'Blocked' ? 'selected' : ''}>Blocked</option>
-            </select>
-          </div>
-        </td>
-        <td>
-          <div class="table-meta">
-            <label class="sr-only" for="due-${escapeHtml(item.requirementId || item.rowId || '')}">Due date</label>
-            <input
-              id="due-${escapeHtml(item.requirementId || item.rowId || '')}"
-              class="table-input"
-              type="date"
-              value="${escapeHtml(item.dueDate || '')}"
-              data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
-              data-field="dueDate"
-            />
-            ${dateState ? `<span class="${dateState.className}">${escapeHtml(dateState.label)}</span>` : '<span class="table-help">No due date</span>'}
-          </div>
-        </td>
-        <td>
-          <label class="sr-only" for="comment-${escapeHtml(item.requirementId || item.rowId || '')}">Comments</label>
-          <textarea
-            id="comment-${escapeHtml(item.requirementId || item.rowId || '')}"
-            class="table-textarea"
-            data-row-id="${escapeHtml(item.requirementId || item.rowId || '')}"
-            data-field="comments"
-            placeholder="Internal note, action, blocker or reviewer comment"
-          >${escapeHtml(item.comments || '')}</textarea>
-        </td>
-        <td>${escapeHtml(item.responseAction || '')}</td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function renderFeed(feed) {
-  if (!analysisFeed) return;
-
-  if (!feed || !feed.length) {
-    analysisFeed.innerHTML = `
-      <div class="feed-item">
-        <div class="feed-dot"></div>
-        <div>
-          <strong>Report not generated</strong>
-          <p>Return to the workspace and run an analysis to populate this view.</p>
+  reportComplianceMatrix.innerHTML = filteredItems.map(item => `
+    <tr>
+      <td><strong>${escapeHtml(item.requirementId || item.rowId || '')}</strong></td>
+      <td>
+        <div class="table-stack">
+          <strong>${escapeHtml(item.requirementTitle || '')}</strong>
+          <span>${escapeHtml(item.requirementText || '')}</span>
         </div>
-      </div>
-    `;
-    return;
-  }
-
-  analysisFeed.innerHTML = feed.map(item => `
-    <div class="feed-item">
-      <div class="feed-dot"></div>
-      <div>
-        <strong>${escapeHtml(item.title || 'Update')}</strong>
-        <p>${escapeHtml(item.text || '')}</p>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderKpis(requirements, complianceItems) {
-  const counts = {
-    detected: 0,
-    assumed: 0,
-    gap: 0,
-    needsReview: 0
-  };
-
-  (requirements || []).forEach(item => {
-    if (item.status === 'Detected') counts.detected += 1;
-    if (item.status === 'Assumed') counts.assumed += 1;
-    if (item.status === 'Gap') counts.gap += 1;
-    if (item.status === 'Needs review') counts.needsReview += 1;
-  });
-
-  let reviewed = 0;
-  let dueSoon = 0;
-  let overdue = 0;
-  let notes = 0;
-
-  (complianceItems || []).forEach(item => {
-    if (item.reviewState === 'Reviewed') reviewed += 1;
-    if (item.comments && item.comments.trim()) notes += 1;
-
-    const dueState = getDueDateState(item.dueDate);
-    if (dueState?.label === 'Due soon') dueSoon += 1;
-    if (dueState?.label === 'Overdue') overdue += 1;
-  });
-
-  kpiDetected.textContent = counts.detected;
-  kpiAssumed.textContent = counts.assumed;
-  kpiGap.textContent = counts.gap;
-  kpiNeedsReview.textContent = counts.needsReview;
-
-  kpiReviewed.textContent = reviewed;
-  kpiDueSoon.textContent = dueSoon;
-  kpiOverdue.textContent = overdue;
-  kpiNotes.textContent = notes;
-}
-
-function setActiveFilter(filterValue) {
-  activeMatrixFilter = filterValue;
-
-  filterButtons.forEach(button => {
-    button.classList.toggle('is-active', button.dataset.filter === filterValue);
-  });
-
-  if (latestReport) {
-    renderComplianceMatrix(latestReport.complianceMatrix || []);
-  }
-}
-
-function resetWorkspaceControls() {
-  activeMatrixFilter = 'all';
-  activeMatrixSearch = '';
-
-  if (matrixSearch) {
-    matrixSearch.value = '';
-  }
-
-  filterButtons.forEach(button => {
-    button.classList.toggle('is-active', button.dataset.filter === 'all');
-  });
-}
-
-function resetReportView() {
-  reportTitle.textContent = 'Proposal intake report';
-  reportSubtitle.textContent = 'Run an analysis from the workspace to generate a structured report.';
-  reportStatusBadge.textContent = 'Ready for review';
-  reportWorkflowPattern.textContent = 'Sequential analysis pipeline';
-  reportWorkflowStages.textContent = 'Waiting for analysis stages.';
-  reportDocCount.textContent = '0 files';
-  reportWorkstream.textContent = 'Not analyzed';
-  reportReadiness.textContent = 'Awaiting input';
-  reportExecutiveSummary.textContent = 'No report has been generated yet.';
-
-  renderKpis([], []);
-  renderBasicList(reportScopeSignals, [], '', 'No scope signals yet.');
-  renderBasicList(reportRiskFlags, [], 'risk', 'No risk flags yet.');
-  renderBasicList(reportRecommendedActions, [], 'action', 'No actions available yet.');
-  renderCatalogMatches([]);
-  renderProposalPageSections([]);
-  renderRequirements([]);
-  renderAssumptions([]);
-  renderBasicList(reportEvaluationFocus, [], '', 'No evaluation focus available yet.');
-  renderGaps([]);
-  renderResponseOutline([]);
-  renderSimpleStringList(reportDetectedSignals, [], 'No detected signals available yet.');
-  renderSimpleStringList(reportMissingSignals, [], 'No missing signals available yet.');
-  renderComplianceMatrix([]);
-  renderFeed([]);
-}
-
-function renderReport(report) {
-  if (!report) {
-    resetReportView();
-    openReportButton.disabled = true;
-    return;
-  }
-
-  const summary = report.summary || {};
-  const workflow = report.workflow || {};
-  const diagnostics = report.intakeDiagnostics || {};
-
-  const documentCount = summary.documentCount || 0;
-  const workstream = summary.workstream || 'Not analyzed';
-  const readiness = summary.readiness || 'Awaiting input';
-
-  reportTitle.textContent = 'Proposal intake report';
-  reportSubtitle.textContent = report.timestamp
-    ? `Generated ${new Date(report.timestamp).toLocaleString()}`
-    : 'Generated from the current analysis run.';
-  reportStatusBadge.textContent = 'Report generated';
-
-  reportWorkflowPattern.textContent = workflow.pattern || 'Sequential analysis pipeline';
-  reportWorkflowStages.textContent = Array.isArray(workflow.stages) && workflow.stages.length
-    ? workflow.stages.join(' → ')
-    : 'No workflow stages available.';
-
-  reportDocCount.textContent = `${documentCount} file${documentCount === 1 ? '' : 's'}`;
-  reportWorkstream.textContent = workstream;
-  reportReadiness.textContent = readiness;
-  reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
-
-  renderKpis(report.requirements || [], report.complianceMatrix || []);
-  renderBasicList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
-  renderBasicList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
-  renderBasicList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
-  renderCatalogMatches(report.catalogMatches || []);
-  renderProposalPageSections(report.proposalPageSections || []);
-  renderRequirements(report.requirements || []);
-  renderAssumptions(report.assumptions || []);
-  renderBasicList(reportEvaluationFocus, report.evaluationFocus || [], '', 'No evaluation focus available yet.');
-  renderGaps(report.gaps || []);
-  renderResponseOutline(report.responseOutline || []);
-  renderSimpleStringList(reportDetectedSignals, diagnostics.detectedSignals || [], 'No detected signals available yet.');
-  renderSimpleStringList(reportMissingSignals, diagnostics.missingSignals || [], 'No missing signals available yet.');
-  renderComplianceMatrix(report.complianceMatrix || []);
-  renderFeed(report.feed || []);
-
-  openReportButton.disabled = false;
-}
-
-function updateComplianceRow(rowId, field, value) {
-  if (!latestReport || !Array.isArray(latestReport.complianceMatrix)) return;
-
-  latestReport.complianceMatrix = latestReport.complianceMatrix.map(item => {
-    const currentId = item.requirementId || item.rowId;
-    if (currentId !== rowId) return item;
-    return {
-      ...item,
-      [field]: value
-    };
-  });
-
-  renderKpis(latestReport.requirements || [], latestReport.complianceMatrix || []);
-  renderComplianceMatrix(latestReport.complianceMatrix || []);
-}
-
-async function loadApiMessage() {
-  if (!apiStatusTitle || !apiMessage) return;
-
-  apiStatusTitle.textContent = 'Checking connection...';
-  apiMessage.textContent = 'Trying to load message from Azure Functions.';
-
-  try {
-    const response = await fetch('/api/message');
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    apiStatusTitle.textContent = 'Connected to API';
-    apiMessage.textContent = data.message
-      ? `${data.message}${data.timestamp ? ` (${data.timestamp})` : ''}`
-      : 'API responded successfully, but no message field was returned.';
-  } catch (error) {
-    apiStatusTitle.textContent = 'API unavailable';
-    apiMessage.textContent = 'Could not load message from /api/message';
-    console.error('API error:', error);
-  }
-}
-
-function renderFiles() {
-  fileList.innerHTML = '';
-
-  if (!selectedFiles.length) {
-    analyzeButton.disabled = true;
-    clearButton.disabled = true;
-    openReportButton.disabled = !latestReport;
-
-    statusTitle.textContent = 'Waiting for files';
-    statusText.textContent = 'No files selected yet.';
-    suggestedNextStepTitle.textContent = 'Upload sample RFP material';
-    suggestedNextStepText.textContent = 'Select one or more files and run an analysis to preview the experience.';
-    return;
-  }
-
-  analyzeButton.disabled = false;
-  clearButton.disabled = false;
-
-  statusTitle.textContent = 'Files ready';
-  statusText.textContent = `${selectedFiles.length} file(s) loaded and ready for analysis.`;
-  suggestedNextStepTitle.textContent = 'Run analysis';
-  suggestedNextStepText.textContent = 'Send file metadata to the backend to generate a structured proposal intake report.';
-
-  selectedFiles.forEach(file => {
-    const item = document.createElement('div');
-    item.className = 'file-item';
-    item.innerHTML = `
-      <div class="file-meta">
-        <span class="file-name">${escapeHtml(file.name)}</span>
-        <span class="file-info">${escapeHtml(formatBytes(file.size))} · ${escapeHtml(file.type || 'Unknown file type')}</span>
-      </div>
-      <span class="file-tag">${escapeHtml(getExtension(file.name))}</span>
-    `;
-    fileList.appendChild(item);
-  });
-}
-
-function setFiles(fileCollection) {
-  selectedFiles = Array.from(fileCollection);
-  renderFiles();
-}
-
-async function runAnalysis() {
-  if (!selectedFiles.length) return;
-
-  statusTitle.textContent = 'Analyzing files';
-  statusText.textContent = 'Sending selected file metadata to the analysis API...';
-  suggestedNextStepTitle.textContent = 'Generating report';
-  suggestedNextStepText.textContent = 'The system is building a structured intake summary from the uploaded material.';
-
-  analyzeButton.disabled = true;
-  clearButton.disabled = true;
-  openReportButton.disabled = true;
-  analyzeButton.textContent = 'Analyzing...';
-
-  setLoading(
-    true,
-    'Analysis in progress',
-    'The platform is reviewing the selected file set and preparing the report view.'
-  );
-
-  try {
-    const payload = {
-      files: selectedFiles.map(file => ({
-        name: file.name,
-        size: file.size,
-        type: file.type || ''
-      }))
-    };
-
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.ok) {
-      throw new Error(data.message || 'Analysis failed.');
-    }
-
-    latestReport = {
-      ...data,
-      complianceMatrix: buildEditableComplianceMatrix(data.complianceMatrix || [])
-    };
-
-    resetWorkspaceControls();
-    renderReport(latestReport);
-
-    statusTitle.textContent = 'Analysis complete';
-    statusText.textContent = 'The backend returned a structured analysis summary.';
-    suggestedNextStepTitle.textContent = 'Open report';
-    suggestedNextStepText.textContent = 'Review the full analysis report, including ownership, comments, due dates and compliance tracking.';
-    openReportButton.disabled = false;
-  } catch (error) {
-    statusTitle.textContent = 'Analysis failed';
-    statusText.textContent = 'The analysis API could not process the request.';
-    suggestedNextStepTitle.textContent = 'Check backend response';
-    suggestedNextStepText.textContent = error.message;
-    console.error('Analyze error:', error);
-  } finally {
-    setLoading(false);
-    analyzeButton.disabled = !selectedFiles.length;
-    clearButton.disabled = !selectedFiles.length;
-    analyzeButton.textContent = 'Analyze files';
-  }
-}
-
-function clearFiles() {
-  selectedFiles = [];
-  fileInput.value = '';
-  latestReport = null;
-  setLoading(false);
-  resetWorkspaceControls();
-  renderFiles();
-  renderReport(null);
-  goToWorkspace();
-}
-
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-  dropZone.addEventListener(eventName, event => {
-    event.preventDefault();
-    event.stopPropagation();
-  });
-});
-
-['dragenter', 'dragover'].forEach(eventName => {
-  dropZone.addEventListener(eventName, () => {
-    dropZone.classList.add('drag-over');
-  });
-});
-
-['dragleave', 'drop'].forEach(eventName => {
-  dropZone.addEventListener(eventName, () => {
-    dropZone.classList.remove('drag-over');
-  });
-});
-
-dropZone.addEventListener('click', () => fileInput.click());
-
-dropZone.addEventListener('keydown', event => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    fileInput.click();
-  }
-});
-
-dropZone.addEventListener('drop', event => {
-  const files = event.dataTransfer.files;
-  if (files && files.length) {
-    setFiles(files);
-  }
-});
-
-fileInput.addEventListener('change', event => {
-  if (event.target.files && event.target.files.length) {
-    setFiles(event.target.files);
-  }
-});
-
-analyzeButton.addEventListener('click', runAnalysis);
-openReportButton.addEventListener('click', goToReport);
-clearButton.addEventListener('click', clearFiles);
-
-if (backToWorkspaceLink) {
-  backToWorkspaceLink.addEventListener('click', event => {
-    event.preventDefault();
-    goToWorkspace();
-  });
-}
-
-if (matrixSearch) {
-  matrixSearch.addEventListener('input', event => {
-    activeMatrixSearch = event.target.value.trim();
-    if (latestReport) {
-      renderComplianceMatrix(latestReport.complianceMatrix || []);
-    }
-  });
-}
-
-filterButtons.forEach(button => {
-  button.addEventListener('click', () => {
-    setActiveFilter(button.dataset.filter);
-  });
-});
-
-if (reportComplianceMatrix) {
-  reportComplianceMatrix.addEventListener('input', event => {
-    const target = event.target;
-    const rowId = target.dataset.rowId;
-    const field = target.dataset.field;
-
-    if (!rowId || !field) return;
-    updateComplianceRow(rowId, field, target.value);
-  });
-
-  reportComplianceMatrix.addEventListener('change', event => {
-    const target = event.target;
-    const rowId = target.dataset.rowId;
-    const field = target.dataset.field;
-
-    if (!rowId || !field) return;
-    updateComplianceRow(rowId, field, target.value);
-  });
-}
-
-window.addEventListener('popstate', renderView);
-
-resetWorkspaceControls();
-renderFiles();
-renderReport(null);
-renderView();
-loadApiMessage();
+      </td>
+      <td>${escapeHtml(item.requirementType || '')}</td>
+      <td>${escapeHtml(item.mandatoryLevel || '')}</td>
+      <td><span class="${statusBadgeClass(item.status)}">${escapeHtml(item.status || '')}</span></td>
+      <td><span class="${fitBadgeClass(item.fitType)}">${escapeHtml(item.fitType || '')}</span></td>
+      <td><span class="${confidenceBadgeClass(item.confidence)}">${escapeHtml(item.confidence || '')}</span></td>
+      <td>${escapeHtml(item.endToEndScenario || '')}</td>
+      <td>
+        <div class="table-stack">
+          <strong>${escapeHtml(item.processArea || '')}</strong>
+          <span class="table-mini">${escape
