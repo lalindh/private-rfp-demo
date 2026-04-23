@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Private RFP Demo</title>
-  <link rel="preconnect" href="https://api.fontshare.com">
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+  //api.fontshare.com">
+  //api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet">
+  " />
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -15,43 +15,117 @@
     <section class="hero">
       <p class="eyebrow">Cepheo proposal platform</p>
       <h1>Build better RFP responses and proposal pages</h1>
-      <p class="lede">A lightweight Microsoft-based platform for turning complex RFx material into structured responses and polished customer-facing pages.</p>
+      <p class="lede">
+        A lightweight Microsoft-based platform for turning complex RFx material into structured responses and polished customer-facing pages.
+      </p>
       <div class="actions">
-        <a class="button button-primary" href="#capabilities">View demo</a>
-        <a class="button button-secondary" href="#how-it-works">How it works</a>
+        <a class="button button-primary" href="#upload">Start demo</a>
+        <a class="button button-secondary" href="#workflow">How it works</a>
       </div>
     </section>
 
-    <section id="capabilities" class="grid">
+    <section id="upload" class="feature-shell">
+      <div class="section-heading">
+        <p class="section-label">Demo flow</p>
+        <h2>Upload an RFP package</h2>
+        <p>
+          Use drag and drop or browse for files. This demo simulates the intake and review experience for proposal teams.
+        </p>
+      </div>
+
+      <div class="upload-layout">
+        <div
+          id="drop-zone"
+          class="drop-zone"
+          tabindex="0"
+          role="button"
+          aria-label="Upload files by dragging them here or browsing from your computer"
+        >
+          <input id="file-input" class="file-input" type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.xls,.txt" />
+          <div class="drop-icon">+</div>
+          <h3>Drop files here</h3>
+          <p>or click to browse from your device</p>
+          <span class="drop-note">Supported demo formats: PDF, Word, PowerPoint, Excel, TXT</span>
+        </div>
+
+        <aside class="status-panel">
+          <div class="status-card">
+            <span class="status-label">Current state</span>
+            <strong id="status-title">Waiting for files</strong>
+            <p id="status-text">No files selected yet.</p>
+          </div>
+
+          <div class="status-card">
+            <span class="status-label">Suggested next step</span>
+            <strong>Upload sample RFP material</strong>
+            <p>Select one or more files and run a mock analysis to preview the experience.</p>
+          </div>
+        </aside>
+      </div>
+
+      <div class="toolbar">
+        <button id="analyze-button" class="button button-primary" disabled>Analyze files</button>
+        <button id="clear-button" class="button button-secondary" disabled>Clear selection</button>
+      </div>
+
+      <div id="file-list" class="file-list" aria-live="polite"></div>
+    </section>
+
+    <section id="workflow" class="grid">
       <article class="card">
-        <h2>Structured content</h2>
-        <p>Turn customer input, requirements, and scope into repeatable sections that are easy to review and refine.</p>
+        <h2>1. Intake</h2>
+        <p>Collect source documents, requirements, and supporting material from the opportunity team.</p>
       </article>
 
       <article class="card">
-        <h2>Microsoft-first stack</h2>
-        <p>Built for GitHub, Copilot, DevOps, and Azure Static Web Apps so your team can stay inside the Microsoft ecosystem.</p>
+        <h2>2. Review</h2>
+        <p>Surface the uploaded content, identify scope signals, and prepare a structured response draft.</p>
       </article>
 
       <article class="card">
-        <h2>Customer-ready output</h2>
-        <p>Generate clean HTML pages that present your offer clearly and consistently for internal and external stakeholders.</p>
+        <h2>3. Publish</h2>
+        <p>Turn approved content into a clean proposal page that can be reviewed internally or shared with the customer.</p>
       </article>
     </section>
 
-    <section id="how-it-works" class="panel">
-      <h2>How it works</h2>
-      <ol>
-        <li>Capture the opportunity and requirements.</li>
-        <li>Generate a proposal draft from the template.</li>
-        <li>Review, refine, and publish to the customer.</li>
-      </ol>
-    </section>
+    <section id="results" class="panel results-panel">
+      <div class="section-heading">
+        <p class="section-label">Output preview</p>
+        <h2>Mock analysis summary</h2>
+        <p>
+          This section updates when you run the demo analysis. It helps visualize what the future solution could surface for sellers and consultants.
+        </p>
+      </div>
 
-    <section class="cta">
-      <h2>Ready for the next iteration</h2>
-      <p>The first version is live. Next we refine the story, structure, and visual rhythm.</p>
-      <a class="button button-primary" href="https://witty-dune-092c2b010.7.azurestaticapps.net" target="_blank" rel="noopener noreferrer">Open live demo</a>
+      <div class="results-grid">
+        <article class="result-card">
+          <span class="status-label">Documents</span>
+          <strong id="result-doc-count">0 files</strong>
+          <p>Files currently loaded into the demo flow.</p>
+        </article>
+
+        <article class="result-card">
+          <span class="status-label">Detected workstream</span>
+          <strong id="result-workstream">Not analyzed</strong>
+          <p>Mock categorization based on uploaded file names and extensions.</p>
+        </article>
+
+        <article class="result-card">
+          <span class="status-label">Proposal readiness</span>
+          <strong id="result-readiness">Awaiting input</strong>
+          <p>Simple readiness signal for the demo experience.</p>
+        </article>
+      </div>
+
+      <div id="analysis-feed" class="analysis-feed" aria-live="polite">
+        <div class="feed-item">
+          <div class="feed-dot"></div>
+          <div>
+            <strong>Demo not started</strong>
+            <p>Upload one or more files to activate the mock workflow.</p>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
