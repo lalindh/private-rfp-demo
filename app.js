@@ -331,4 +331,424 @@ function renderComplianceMatrix(items) {
       <td>
         <div class="table-stack">
           <strong>${escapeHtml(item.processArea || '')}</strong>
-          <span class="table-mini">${escape
+          <span class="table-mini">${escapeHtml(item.processId || '')}</span>
+        </div>
+      </td>
+      <td>${escapeHtml(item.process || '')}</td>
+      <td>
+        <div class="table-stack">
+          <strong>${escapeHtml(item.sourceDocument || '')}</strong>
+          <span class="table-mini">${escapeHtml(item.sourceSection || '')} · Page ${escapeHtml(item.sourcePage || '')}</span>
+        </div>
+      </td>
+      <td>${escapeHtml(item.reviewReason || '')}</td>
+      <td>${escapeHtml(item.responseAction || '')}</td>
+    </tr>
+  `).join('');
+}
+
+function renderFeed(feed) {
+  if (!analysisFeed) return;
+
+  if (!feed || !feed.length) {
+    analysisFeed.innerHTML = `
+      <div class="feed-item">
+        <div class="feed-dot"></div>
+        <div>
+          <strong>Report not generated</strong>
+          <p>Return to the workspace and run an analysis to populate this view.</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  analysisFeed.innerHTML = feed.map(item => `
+    <div class="feed-item">
+      <div class="feed-dot"></div>
+      <div>
+        <strong>${escapeHtml(item.title || 'Update')}</strong>
+        <p>${escapeHtml(item.text || '')}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderKpis(requirements) {
+  const counts = {
+    detected: 0,
+    assumed: 0,
+    gap: 0,
+    needsReview: 0,
+    mapped: 0,
+    highConfidence: 0,
+    unclear: 0,
+    gapCount: 0
+  };
+
+  (requirements || []).forEach(item => {
+    if (item.status === 'Detected') counts.detected += 1;
+    if (item.status === 'Assumed') counts.assumed += 1;
+    if (item.status === 'Gap') counts.gap += 1;
+    if (item.status === 'Needs review') counts.needsReview += 1;
+    if (item.processArea && item.processArea !== 'Unmapped process area') counts.mapped += 1;
+    if (item.confidence === 'High') counts.highConfidence += 1;
+    if (item.fitType === 'Unclear') counts.unclear += 1;
+    if (item.fitType === 'Integration gap' || item.fitType === 'Extension gap') counts.gapCount += 1;
+  });
+
+  kpiDetected.textContent = counts.detected;
+  kpiAssumed.textContent = counts.assumed;
+  kpiGap.textContent = counts.gap;
+  kpiNeedsReview.textContent = counts.needsReview;
+  kpiMapped.textContent = counts.mapped;
+  kpiHighConfidence.textContent = counts.highConfidence;
+  kpiUnclear.textContent = counts.unclear;
+  kpiGapCount.textContent = counts.gapCount;
+}
+
+function setActiveFilter(filterValue) {
+  activeMatrixFilter = filterValue;
+
+  filterButtons.forEach(button => {
+    button.classList.toggle('is-active', button.dataset.filter === filterValue);
+  });
+
+  if (latestReport) {
+    renderComplianceMatrix(latestReport.complianceMatrix || []);
+  }
+}
+
+function resetWorkspaceControls() {
+  activeMatrixFilter = 'all';
+  activeMatrixSearch = '';
+  activeTypeFilter = 'all';
+  activeFitFilter = 'all';
+
+  if (matrixSearch) matrixSearch.value = '';
+  if (matrixTypeFilter) matrixTypeFilter.value = 'all';
+  if (matrixFitFilter) matrixFitFilter.value = 'all';
+
+  filterButtons.forEach(button => {
+    button.classList.toggle('is-active', button.dataset.filter === 'all');
+  });
+}
+
+function resetReportView() {
+  reportTitle.textContent = 'Proposal intake report';
+  reportSubtitle.textContent = 'Run an analysis from the workspace to generate a structured report.';
+  reportStatusBadge.textContent = 'Ready for review';
+  reportWorkflowPattern.textContent = 'Sequential analysis pipeline';
+  reportWorkflowStages.textContent = 'Waiting for analysis stages.';
+  reportDocCount.textContent = '0 files';
+  reportWorkstream.textContent = 'Not analyzed';
+  reportReadiness.textContent = 'Awaiting input';
+  reportExecutiveSummary.textContent = 'No report has been generated yet.';
+
+  renderKpis([]);
+  renderBasicList(reportScopeSignals, [], '', 'No scope signals yet.');
+  renderBasicList(reportRiskFlags, [], 'risk', 'No risk flags yet.');
+  renderBasicList(reportRecommendedActions, [], 'action', 'No actions available yet.');
+  renderCatalogMatches([]);
+  renderProposalPageSections([]);
+  renderRequirements([]);
+  renderAssumptions([]);
+  renderBasicList(reportEvaluationFocus, [], '', 'No evaluation focus available yet.');
+  renderGaps([]);
+  renderResponseOutline([]);
+  renderSimpleStringList(reportDetectedSignals, [], 'No detected signals available yet.');
+  renderSimpleStringList(reportMissingSignals, [], 'No missing signals available yet.');
+  renderComplianceMatrix([]);
+  renderFeed([]);
+}
+
+function renderReport(report) {
+  if (!report) {
+    resetReportView();
+    openReportButton.disabled = true;
+    return;
+  }
+
+  const summary = report.summary || {};
+  const workflow = report.workflow || {};
+  const diagnostics = report.intakeDiagnostics || {};
+
+  const documentCount = summary.documentCount || 0;
+  const workstream = summary.workstream || 'Not analyzed';
+  const readiness = summary.readiness || 'Awaiting input';
+
+  reportTitle.textContent = 'Proposal intake report';
+  reportSubtitle.textContent = report.timestamp
+    ? `Generated ${new Date(report.timestamp).toLocaleString()}`
+    : 'Generated from the current analysis run.';
+  reportStatusBadge.textContent = 'Report generated';
+
+  reportWorkflowPattern.textContent = workflow.pattern || 'Sequential analysis pipeline';
+  reportWorkflowStages.textContent = Array.isArray(workflow.stages) && workflow.stages.length
+    ? workflow.stages.join(' → ')
+    : 'No workflow stages available.';
+
+  reportDocCount.textContent = `${documentCount} file${documentCount === 1 ? '' : 's'}`;
+  reportWorkstream.textContent = workstream;
+  reportReadiness.textContent = readiness;
+  reportExecutiveSummary.textContent = report.executiveSummary || 'No summary was returned by the API.';
+
+  renderKpis(report.requirements || []);
+  renderBasicList(reportScopeSignals, report.scopeSignals || [], '', 'No scope signals yet.');
+  renderBasicList(reportRiskFlags, report.riskFlags || [], 'risk', 'No risk flags yet.');
+  renderBasicList(reportRecommendedActions, report.recommendedActions || [], 'action', 'No actions available yet.');
+  renderCatalogMatches(report.catalogMatches || []);
+  renderProposalPageSections(report.proposalPageSections || []);
+  renderRequirements(report.requirements || []);
+  renderAssumptions(report.assumptions || []);
+  renderBasicList(reportEvaluationFocus, report.evaluationFocus || [], '', 'No evaluation focus available yet.');
+  renderGaps(report.gaps || []);
+  renderResponseOutline(report.responseOutline || []);
+  renderSimpleStringList(reportDetectedSignals, diagnostics.detectedSignals || [], 'No detected signals available yet.');
+  renderSimpleStringList(reportMissingSignals, diagnostics.missingSignals || [], 'No missing signals available yet.');
+  renderComplianceMatrix(report.complianceMatrix || []);
+  renderFeed(report.feed || []);
+
+  openReportButton.disabled = false;
+}
+
+async function loadApiMessage() {
+  if (!apiStatusTitle || !apiMessage) return;
+
+  apiStatusTitle.textContent = 'Checking connection...';
+  apiMessage.textContent = 'Trying to load message from Azure Functions.';
+
+  try {
+    const response = await fetch('/api/message');
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    apiStatusTitle.textContent = 'Connected to API';
+    apiMessage.textContent = data.message
+      ? `${data.message}${data.timestamp ? ` (${data.timestamp})` : ''}`
+      : 'API responded successfully, but no message field was returned.';
+  } catch (error) {
+    apiStatusTitle.textContent = 'API unavailable';
+    apiMessage.textContent = 'Could not load message from /api/message';
+    console.error('API error:', error);
+  }
+}
+
+function renderFiles() {
+  fileList.innerHTML = '';
+
+  if (!selectedFiles.length) {
+    analyzeButton.disabled = true;
+    clearButton.disabled = true;
+    openReportButton.disabled = !latestReport;
+
+    statusTitle.textContent = 'Waiting for files';
+    statusText.textContent = 'No files selected yet.';
+    suggestedNextStepTitle.textContent = 'Upload sample RFP material';
+    suggestedNextStepText.textContent = 'Select one or more files and run an analysis to preview the experience.';
+    return;
+  }
+
+  analyzeButton.disabled = false;
+  clearButton.disabled = false;
+
+  statusTitle.textContent = 'Files ready';
+  statusText.textContent = `${selectedFiles.length} file(s) loaded and ready for analysis.`;
+  suggestedNextStepTitle.textContent = 'Run analysis';
+  suggestedNextStepText.textContent = 'Send file metadata to the backend to generate a structured proposal intake report.';
+
+  selectedFiles.forEach(file => {
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    item.innerHTML = `
+      <div class="file-meta">
+        <span class="file-name">${escapeHtml(file.name)}</span>
+        <span class="file-info">${escapeHtml(formatBytes(file.size))} · ${escapeHtml(file.type || 'Unknown file type')}</span>
+      </div>
+      <span class="file-tag">${escapeHtml(getExtension(file.name))}</span>
+    `;
+    fileList.appendChild(item);
+  });
+}
+
+function setFiles(fileCollection) {
+  selectedFiles = Array.from(fileCollection);
+  renderFiles();
+}
+
+async function runAnalysis() {
+  if (!selectedFiles.length) return;
+
+  statusTitle.textContent = 'Analyzing files';
+  statusText.textContent = 'Sending selected file metadata to the analysis API...';
+  suggestedNextStepTitle.textContent = 'Generating report';
+  suggestedNextStepText.textContent = 'The system is building a structured intake summary from the uploaded material.';
+
+  analyzeButton.disabled = true;
+  clearButton.disabled = true;
+  openReportButton.disabled = true;
+  analyzeButton.textContent = 'Analyzing...';
+
+  setLoading(
+    true,
+    'Analysis in progress',
+    'The platform is reviewing the selected file set and preparing the report view.'
+  );
+
+  try {
+    const payload = {
+      files: selectedFiles.map(file => ({
+        name: file.name,
+        size: file.size,
+        type: file.type || ''
+      }))
+    };
+
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.ok) {
+      throw new Error(data.message || 'Analysis failed.');
+    }
+
+    latestReport = data;
+    resetWorkspaceControls();
+    renderReport(latestReport);
+
+    statusTitle.textContent = 'Analysis complete';
+    statusText.textContent = 'The backend returned a structured analysis summary.';
+    suggestedNextStepTitle.textContent = 'Open report';
+    suggestedNextStepText.textContent = 'Review the full analysis report, including richer requirement fields, process mapping and fit/gap signals.';
+    openReportButton.disabled = false;
+  } catch (error) {
+    statusTitle.textContent = 'Analysis failed';
+    statusText.textContent = 'The analysis API could not process the request.';
+    suggestedNextStepTitle.textContent = 'Check backend response';
+    suggestedNextStepText.textContent = error.message;
+    console.error('Analyze error:', error);
+  } finally {
+    setLoading(false);
+    analyzeButton.disabled = !selectedFiles.length;
+    clearButton.disabled = !selectedFiles.length;
+    analyzeButton.textContent = 'Analyze files';
+  }
+}
+
+function clearFiles() {
+  selectedFiles = [];
+  fileInput.value = '';
+  latestReport = null;
+  setLoading(false);
+  resetWorkspaceControls();
+  renderFiles();
+  renderReport(null);
+  goToWorkspace();
+}
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, event => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+});
+
+['dragenter', 'dragover'].forEach(eventName => {
+  dropZone.addEventListener(eventName, () => {
+    dropZone.classList.add('drag-over');
+  });
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, () => {
+    dropZone.classList.remove('drag-over');
+  });
+});
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('keydown', event => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    fileInput.click();
+  }
+});
+
+dropZone.addEventListener('drop', event => {
+  const files = event.dataTransfer.files;
+  if (files && files.length) {
+    setFiles(files);
+  }
+});
+
+fileInput.addEventListener('change', event => {
+  if (event.target.files && event.target.files.length) {
+    setFiles(event.target.files);
+  }
+});
+
+analyzeButton.addEventListener('click', runAnalysis);
+openReportButton.addEventListener('click', goToReport);
+clearButton.addEventListener('click', clearFiles);
+
+if (backToWorkspaceLink) {
+  backToWorkspaceLink.addEventListener('click', event => {
+    event.preventDefault();
+    goToWorkspace();
+  });
+}
+
+if (matrixSearch) {
+  matrixSearch.addEventListener('input', event => {
+    activeMatrixSearch = event.target.value.trim();
+    if (latestReport) {
+      renderComplianceMatrix(latestReport.complianceMatrix || []);
+    }
+  });
+}
+
+if (matrixTypeFilter) {
+  matrixTypeFilter.addEventListener('change', event => {
+    activeTypeFilter = event.target.value;
+    if (latestReport) {
+      renderComplianceMatrix(latestReport.complianceMatrix || []);
+    }
+  });
+}
+
+if (matrixFitFilter) {
+  matrixFitFilter.addEventListener('change', event => {
+    activeFitFilter = event.target.value;
+    if (latestReport) {
+      renderComplianceMatrix(latestReport.complianceMatrix || []);
+    }
+  });
+}
+
+filterButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    setActiveFilter(button.dataset.filter);
+  });
+});
+
+window.addEventListener('popstate', renderView);
+
+resetWorkspaceControls();
+renderFiles();
+renderReport(null);
+renderView();
+loadApiMessage();
