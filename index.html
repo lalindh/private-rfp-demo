@@ -187,6 +187,32 @@
           </article>
         </div>
 
+        <div class="workspace-kpis workspace-kpis-secondary">
+          <article class="kpi-card">
+            <span class="status-label">Reviewed rows</span>
+            <strong id="kpi-reviewed">0</strong>
+            <p>Rows marked as reviewed by the proposal team.</p>
+          </article>
+
+          <article class="kpi-card">
+            <span class="status-label">Due this week</span>
+            <strong id="kpi-due-soon">0</strong>
+            <p>Rows with a due date within the next seven days.</p>
+          </article>
+
+          <article class="kpi-card">
+            <span class="status-label">Overdue</span>
+            <strong id="kpi-overdue">0</strong>
+            <p>Rows with a due date already in the past.</p>
+          </article>
+
+          <article class="kpi-card">
+            <span class="status-label">Rows with notes</span>
+            <strong id="kpi-notes">0</strong>
+            <p>Rows where internal comments or actions were added.</p>
+          </article>
+        </div>
+
         <div class="report-body-grid">
           <article class="report-block report-block-featured">
             <span class="status-label">Executive summary</span>
@@ -281,7 +307,7 @@
             <div class="matrix-header">
               <div>
                 <h3>Requirement tracking view</h3>
-                <p>Use filters and search to focus the proposal team on the right requirements first.</p>
+                <p>Use filters, ownership and review details to make the matrix operational for the proposal team.</p>
               </div>
             </div>
 
@@ -296,13 +322,13 @@
 
               <label class="search-shell" for="matrix-search">
                 <span class="search-label">Search requirements</span>
-                <input id="matrix-search" class="search-input" type="search" placeholder="Search by requirement, owner or proposal section" />
+                <input id="matrix-search" class="search-input" type="search" placeholder="Search by requirement, owner, comment or proposal section" />
               </label>
             </div>
 
             <div class="matrix-shell">
               <div class="matrix-scroll">
-                <table class="compliance-table">
+                <table class="compliance-table compliance-table-editable">
                   <thead>
                     <tr>
                       <th>Req ID</th>
@@ -312,12 +338,15 @@
                       <th>Compliance</th>
                       <th>Owner</th>
                       <th>Proposal section</th>
+                      <th>Review state</th>
+                      <th>Due date</th>
+                      <th>Comments</th>
                       <th>Response action</th>
                     </tr>
                   </thead>
                   <tbody id="report-compliance-matrix">
                     <tr>
-                      <td colspan="8">
+                      <td colspan="11">
                         <div class="empty-state-text">No compliance matrix available yet.</div>
                       </td>
                     </tr>
