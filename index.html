@@ -30,7 +30,7 @@
           <p class="section-label">Demo flow</p>
           <h2>Upload an RFP package</h2>
           <p>
-            Use drag and drop or browse for files. This demo simulates intake, requirement synthesis, process mapping and proposal workspace preparation.
+            Use drag and drop or browse for files. Mark each file with a document role so the system knows what to treat as the functional requirements master.
           </p>
         </div>
 
@@ -65,7 +65,7 @@
             <div class="status-card">
               <span class="status-label">Suggested next step</span>
               <strong id="suggested-next-step-title">Upload sample RFP material</strong>
-              <p id="suggested-next-step-text">Select one or more files and run an analysis to preview the experience.</p>
+              <p id="suggested-next-step-text">Select one or more files and assign a role before running analysis.</p>
             </div>
           </aside>
         </div>
@@ -421,6 +421,33 @@
           </div>
         </div>
       </section>
+    </section>
+
+    <section id="upload-metadata" class="feature-shell">
+      <div class="section-heading">
+        <p class="section-label">Document roles</p>
+        <h2>Mark each file before analysis</h2>
+        <p>
+          Excel with functional requirements should be marked as the master source so the backend can treat it as the primary requirements input.
+        </p>
+      </div>
+
+      <div class="role-legend">
+        <div class="role-card is-primary">
+          <strong>Functional requirements</strong>
+          <p>Use for Excel files that contain the actual requirement rows.</p>
+        </div>
+        <div class="role-card">
+          <strong>Main RFP</strong>
+          <p>Use for the main tender or RFP document.</p>
+        </div>
+        <div class="role-card">
+          <strong>Commercial / other</strong>
+          <p>Use for supporting files, evaluation criteria and appendices.</p>
+        </div>
+      </div>
+
+      <div id="role-file-list" class="role-file-list"></div>
     </section>
   </main>
 
