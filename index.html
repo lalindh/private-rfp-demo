@@ -76,6 +76,22 @@
           <button id="clear-button" class="button button-secondary" disabled>Clear selection</button>
         </div>
 
+        <div id="loading-panel" class="loading-panel hidden" aria-live="polite">
+          <div class="loading-shell">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <div class="loading-copy">
+              <strong id="loading-title">Preparing analysis</strong>
+              <p id="loading-text">The system is packaging the uploaded material and contacting the backend.</p>
+            </div>
+          </div>
+
+          <div class="loading-steps">
+            <div class="loading-step is-active">Collecting file metadata</div>
+            <div class="loading-step">Sending request to analysis API</div>
+            <div class="loading-step">Generating structured report</div>
+          </div>
+        </div>
+
         <div id="file-list" class="file-list" aria-live="polite"></div>
       </section>
 
@@ -98,14 +114,23 @@
     </section>
 
     <section id="report-view" class="app-view hidden">
-      <div class="report-header panel">
-        <div class="report-header-copy">
+      <div class="report-hero panel">
+        <div class="report-hero-copy">
           <p class="section-label">Analysis report</p>
           <h2 id="report-title">Proposal intake report</h2>
           <p id="report-subtitle">Run an analysis from the workspace to generate a structured report.</p>
         </div>
-        <div class="report-header-actions">
-          <a class="button button-secondary" href="/" id="back-to-workspace-link">Back to workspace</a>
+
+        <div class="report-hero-meta">
+          <div class="hero-meta-card">
+            <span class="status-label">Report status</span>
+            <strong id="report-status-badge">Ready for review</strong>
+            <p>Structured output from the current intake run.</p>
+          </div>
+
+          <div class="report-header-actions">
+            <a class="button button-secondary" href="/" id="back-to-workspace-link">Back to workspace</a>
+          </div>
         </div>
       </div>
 
@@ -131,7 +156,7 @@
         </div>
 
         <div class="report-body-grid">
-          <article class="report-block">
+          <article class="report-block report-block-featured">
             <span class="status-label">Executive summary</span>
             <h3>Summary</h3>
             <p id="report-executive-summary">No report has been generated yet.</p>
