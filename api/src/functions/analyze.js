@@ -1,7 +1,11 @@
 const { app } = require('@azure/functions');
 
 function detectWorkstream(files) {
-  const names = files.map(file => (file.name || '').toLowerCase()).join(' ');
+  const names = files
+    .map(function (file) {
+      return (file && file.name ? file.name : '').toLowerCase();
+    })
+    .join(' ');
 
   if (names.includes('finance') || names.includes('erp') || names.includes('d365')) {
     return 'Dynamics 365 / ERP';
@@ -19,26 +23,52 @@ function detectWorkstream(files) {
 }
 
 function buildReadiness(files) {
-  if (files.length >= 3) return 'Draft can be prepared';
-  if (files.length === 2) return 'Good basis for draft';
+  if (files.length >= 3) {
+    return 'Draft can be prepared';
+  }
+
+  if (files.length === 2) {
+    return 'Good basis for draft';
+  }
+
   return 'More source material recommended';
 }
 
 function buildExecutiveSummary(files, workstream, readiness) {
-  return `The uploaded material indicates a ${workstream} opportunity with ${files.length} source document${files.length > 1 ? 's' : ''}. Current readiness is assessed as "${readiness}", which suggests the team can proceed with structured review and proposal planning at this stage.`;
+  return 'The uploaded material indicates a ' +
+    workstream +
+    ' opportunity with ' +
+    files.length +
+    ' source document' +
+    (files.length > 1 ? 's' : '') +
+    '. Current readiness is assessed as "' +
+    readiness +
+    '", which suggests the team can proceed with structured review and proposal planning at this stage.';
 }
 
 function buildScopeSignals(files, workstream) {
-  const extensions = [...new Set(files.map(file => (file.name.split('.').pop() || 'file').toUpperCase()))];
+  const extensions = [];
+  const seen = {};
+
+  files.forEach(function (file) {
+    const fileName = file && file.name ? file.name : '';
+    const parts = fileName.split('.');
+    const extension = (parts.length > 1 ? parts.pop() : 'file').toUpperCase();
+
+    if (!seen[extension]) {
+      seen[extension] = true;
+      extensions.push(extension);
+    }
+  });
 
   return [
     {
       title: 'Primary workstream',
-      text: `The material points to a likely workstream of ${workstream}.`
+      text: 'The material points to a likely workstream of ' + workstream + '.'
     },
     {
       title: 'Document mix',
-      text: `The uploaded package contains ${extensions.join(', ')} material, which suggests a mix of input formats across the opportunity workflow.`
+      text: 'The uploaded package contains ' + extensions.join(', ') + ' material, which suggests a mix of input formats across the opportunity workflow.'
     },
     {
       title: 'Review approach',
@@ -57,7 +87,11 @@ function buildRiskFlags(files) {
     });
   }
 
-  const hasSpreadsheet = files.some(file => (file.name || '').toLowerCase().endsWith('.xlsx') || (file.name || '').toLowerCase().endsWith('.xls'));
+  const hasSpreadsheet = files.some(function (file) {
+    const name = file && file.name ? file.name.toLowerCase() : '';
+    return name.endsWith('.xlsx') || name.endsWith('.xls');
+  });
+
   if (!hasSpreadsheet) {
     flags.push({
       title: 'Commercial detail not obvious',
@@ -81,7 +115,7 @@ function buildRecommendedActions(files, readiness) {
     },
     {
       title: 'Draft response outline',
-      text: `Use the current readiness level "${readiness}" to decide whether to move directly into outline creation or request additional inputs first.`
+      text: 'Use the current readiness level "' + readiness + '" to decide whether to move directly into outline creation or request additional inputs first.'
     },
     {
       title: 'Customer-facing packaging',
@@ -96,11 +130,11 @@ function buildFeed(files, workstream, readiness) {
   return [
     {
       title: 'Content grouped',
-      text: `The uploaded files were grouped into a provisional workstream: ${workstream}.`
+      text: 'The uploaded files were grouped into a provisional workstream: ' + workstream + '.'
     },
     {
       title: 'Readiness assessed',
-      text: `Current proposal readiness: ${readiness}.`
+      text: 'Current proposal readiness: ' + readiness + '.'
     },
     {
       title: 'Next-step recommendation',
@@ -119,8 +153,16 @@ app.http('analyze', {
     context.log('Analyze API was called');
 
     try {
-      const body = await request.json();
-      const files = Array.isArray(body?.files) ? body.files : [];
+      let body = {};
+
+      try {
+        body = await request.json();
+      } catch (parseError) {
+        context.log('Analyze API body parse failed, using empty object');
+        body = {};
+      }
+
+      const files = body && Array.isArray(body.files) ? body.files : [];
 
       if (!files.length) {
         return {
@@ -136,12 +178,13 @@ app.http('analyze', {
       const readiness = buildReadiness(files);
 
       return {
+        status: 200,
         jsonBody: {
           ok: true,
           summary: {
             documentCount: files.length,
-            workstream,
-            readiness
+            workstream: workstream,
+            readiness: readiness
           },
           executiveSummary: buildExecutiveSummary(files, workstream, readiness),
           scopeSignals: buildScopeSignals(files, workstream),
@@ -152,7 +195,7 @@ app.http('analyze', {
         }
       };
     } catch (error) {
-      context.log(`Analyze API error: ${error.message}`);
+      context.log('Analyze API error: ' + error.message);
 
       return {
         status: 500,
