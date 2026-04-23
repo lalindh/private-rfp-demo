@@ -1,3 +1,5 @@
+const { app } = require('@azure/functions');
+
 const REQUIREMENT_PATTERNS = [
   {
     keywords: ['finance', 'general ledger', 'ledger', 'accounts payable', 'accounts receivable', 'invoice', 'invoicing', 'fixed asset', 'financial reporting'],
@@ -104,7 +106,7 @@ function normalizeText(value) {
 }
 
 function splitFileNameToSignals(fileName) {
-  return fileName
+  return String(fileName || '')
     .replace(/\.[^/.]+$/, '')
     .replace(/[_-]+/g, ' ')
     .split(/\s+/)
@@ -134,12 +136,15 @@ function inferPriority(mandatoryLevel, fitType) {
   if (mandatoryLevel === 'Must' && (fitType === 'Integration gap' || fitType === 'Extension gap')) {
     return 'Critical';
   }
+
   if (mandatoryLevel === 'Must') {
     return 'High';
   }
+
   if (fitType === 'Unclear') {
     return 'Medium';
   }
+
   return 'Medium';
 }
 
@@ -162,15 +167,19 @@ function buildReviewReason(fitType, confidence) {
   if (fitType === 'Integration gap') {
     return 'Requires architect review because external systems or interfaces are implied.';
   }
+
   if (fitType === 'Extension gap') {
     return 'Requires solution review because standard process coverage appears incomplete.';
   }
+
   if (confidence === 'Low') {
     return 'Low-confidence mapping. Human validation is needed before proposal shaping.';
   }
+
   if (fitType === 'Configuration fit') {
     return 'Likely covered through configuration, but customer scope and assumptions should be confirmed.';
   }
+
   return 'Looks aligned with standard process coverage, but should still be validated during bid review.';
 }
 
@@ -194,7 +203,7 @@ function mapToProcess(text) {
 }
 
 function buildRequirementSentence(file, signal, index) {
-  const baseName = file.name.replace(/\.[^/.]+$/, '');
+  const baseName = String(file?.name || '').replace(/\.[^/.]+$/, '');
 
   const syntheticStatements = [
     `The solution must support ${signal} processes and provide traceable response coverage.`,
@@ -203,7 +212,9 @@ function buildRequirementSentence(file, signal, index) {
     `The proposal must identify assumptions, fit gaps and review points related to ${signal}.`
   ];
 
-  return syntheticStatements[index % syntheticStatements.length].replace(/  +/g, ' ').replace(baseName, signal);
+  return syntheticStatements[index % syntheticStatements.length]
+    .replace(/  +/g, ' ')
+    .replace(baseName, signal);
 }
 
 function buildRequirementRow(file, signal, index) {
@@ -309,7 +320,7 @@ function buildRiskFlags(requirements) {
     }));
 }
 
-function buildRecommendedActions(requirements) {
+function buildRecommendedActions() {
   return [
     {
       title: 'Validate requirement extraction',
@@ -404,7 +415,7 @@ function buildResponseOutline(requirements) {
     { section: 'Delivery approach', text: 'Describe implementation method, assumptions and governance.' }
   ];
 
-  if (requirements.some(item => item.fitType.includes('gap') || item.fitType === 'Unclear')) {
+  if (requirements.some(item => item.fitType.toLowerCase().includes('gap') || item.fitType === 'Unclear')) {
     outline.push({
       section: 'Gaps and dependencies',
       text: 'Document integration needs, extension areas, assumptions and items that require confirmation.'
@@ -449,69 +460,73 @@ function buildFeed(files, requirements) {
   ];
 }
 
-export async function handler(request, context) {
-  try {
-    const body = await request.json();
-    const files = Array.isArray(body?.files) ? body.files : [];
+app.http('analyze', {
+  methods: ['POST'],
+  authLevel: 'anonymous',
+  handler: async (request, context) => {
+    try {
+      const body = await request.json();
+      const files = Array.isArray(body?.files) ? body.files : [];
 
-    if (!files.length) {
+      if (!files.length) {
+        return Response.json(
+          {
+            ok: false,
+            message: 'No files were provided.'
+          },
+          { status: 400 }
+        );
+      }
+
+      const requirements = buildRequirements(files);
+
+      const response = {
+        ok: true,
+        timestamp: new Date().toISOString(),
+        summary: {
+          documentCount: files.length,
+          workstream: summarizeWorkstream(requirements),
+          readiness: requirements.some(item => item.status === 'Gap')
+            ? 'Needs structured review'
+            : 'Ready for proposal shaping'
+        },
+        workflow: {
+          pattern: 'Requirement extraction → process mapping → fit/gap review',
+          stages: [
+            'Intake',
+            'Requirement extraction',
+            'Process mapping',
+            'Fit/gap assessment',
+            'Proposal shaping'
+          ]
+        },
+        executiveSummary: buildExecutiveSummary(requirements, files),
+        scopeSignals: buildScopeSignals(requirements),
+        riskFlags: buildRiskFlags(requirements),
+        recommendedActions: buildRecommendedActions(),
+        catalogMatches: buildCatalogMatches(requirements),
+        proposalPageSections: buildProposalSections(requirements),
+        requirements,
+        assumptions: buildAssumptions(requirements),
+        gaps: buildGaps(requirements),
+        evaluationFocus: buildEvaluationFocus(requirements),
+        responseOutline: buildResponseOutline(requirements),
+        complianceMatrix: requirements,
+        intakeDiagnostics: buildDiagnostics(requirements),
+        feed: buildFeed(files, requirements)
+      };
+
+      return Response.json(response, { status: 200 });
+    } catch (error) {
+      context.log('Analyze function failed', error);
+
       return Response.json(
         {
           ok: false,
-          message: 'No files were provided.'
+          message: 'Failed to analyze the uploaded files.'
         },
-        { status: 400 }
+        { status: 500 }
       );
     }
-
-    const requirements = buildRequirements(files);
-
-    const response = {
-      ok: true,
-      timestamp: new Date().toISOString(),
-      summary: {
-        documentCount: files.length,
-        workstream: summarizeWorkstream(requirements),
-        readiness: requirements.some(item => item.status === 'Gap')
-          ? 'Needs structured review'
-          : 'Ready for proposal shaping'
-      },
-      workflow: {
-        pattern: 'Requirement extraction → process mapping → fit/gap review',
-        stages: [
-          'Intake',
-          'Requirement extraction',
-          'Process mapping',
-          'Fit/gap assessment',
-          'Proposal shaping'
-        ]
-      },
-      executiveSummary: buildExecutiveSummary(requirements, files),
-      scopeSignals: buildScopeSignals(requirements),
-      riskFlags: buildRiskFlags(requirements),
-      recommendedActions: buildRecommendedActions(requirements),
-      catalogMatches: buildCatalogMatches(requirements),
-      proposalPageSections: buildProposalSections(requirements),
-      requirements,
-      assumptions: buildAssumptions(requirements),
-      gaps: buildGaps(requirements),
-      evaluationFocus: buildEvaluationFocus(requirements),
-      responseOutline: buildResponseOutline(requirements),
-      complianceMatrix: requirements,
-      intakeDiagnostics: buildDiagnostics(requirements),
-      feed: buildFeed(files, requirements)
-    };
-
-    return Response.json(response, { status: 200 });
-  } catch (error) {
-    context.log('Analyze function failed', error);
-
-    return Response.json(
-      {
-        ok: false,
-        message: 'Failed to analyze the uploaded files.'
-      },
-      { status: 500 }
-    );
   }
-}
+});
