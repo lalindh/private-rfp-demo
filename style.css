@@ -503,6 +503,28 @@ button{
   background:rgba(99,211,156,.06);
 }
 
+.signal-item-catalog{
+  border-color:rgba(122,162,255,.32);
+  background:rgba(79,140,255,.08);
+}
+
+.signal-item-section{
+  border-color:rgba(99,211,156,.20);
+  background:rgba(99,211,156,.04);
+}
+
+.signal-meta{
+  display:inline-flex;
+  margin-bottom:.55rem;
+  padding:.28rem .55rem;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  color:var(--accent-2);
+  font-size:.78rem;
+  font-weight:700;
+  letter-spacing:.04em;
+}
+
 .empty-state-text{
   padding:1rem;
   border-radius:var(--radius-sm);
