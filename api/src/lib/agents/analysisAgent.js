@@ -1,23 +1,34 @@
 const { buildAnalysisPrompt } = require('../prompts/analysisPrompt');
 
-function extractTextFromGeminiResponse(data) {
-  const candidates = data?.candidates;
+function extractTextFromOpenRouterResponse(data) {
+  const choice = Array.isArray(data?.choices) ? data.choices[0] : null;
 
-  if (!Array.isArray(candidates) || !candidates.length) {
+  if (!choice) {
     return '';
   }
 
-  const parts = candidates[0]?.content?.parts;
-
-  if (!Array.isArray(parts) || !parts.length) {
-    return '';
+  if (typeof choice.text === 'string' && choice.text.trim()) {
+    return choice.text.trim();
   }
 
-  return parts
-    .map((part) => part?.text || '')
-    .filter(Boolean)
-    .join('\n')
-    .trim();
+  const content = choice?.message?.content;
+
+  if (typeof content === 'string') {
+    return content.trim();
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        return part?.text || part?.content || '';
+      })
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+
+  return '';
 }
 
 function safeJsonParse(text) {
@@ -48,79 +59,55 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function parseGeminiError(status, text) {
-  let parsed = null;
-
-  try {
-    parsed = JSON.parse(text);
-  } catch (error) {
-    parsed = null;
+function isRetryableOpenRouterError(status, bodyText) {
+  if (.includes(status)) {
+    return true;
   }
 
-  const message =
-    parsed?.error?.message ||
-    text ||
-    `Gemini API call failed with status ${status}`;
+  const text = String(bodyText || '').toLowerCase();
 
-  const code = parsed?.error?.code || status;
-  const apiStatus = parsed?.error?.status || 'UNKNOWN';
-
-  return {
-    code,
-    status: apiStatus,
-    message
-  };
-}
-
-function isRetryableGeminiError(error) {
   return (
-    error &&
-    (
-      error.code === 503 ||
-      error.code === 429 ||
-      error.status === 'UNAVAILABLE' ||
-      error.status === 'RESOURCE_EXHAUSTED'
-    )
+    text.includes('rate limit') ||
+    text.includes('overloaded') ||
+    text.includes('temporarily unavailable') ||
+    text.includes('high demand')
   );
 }
 
-async function callGemini(model, apiKey, prompt) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: 'application/json'
+async function callOpenRouter(model, apiKey, prompt) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'http://localhost',
+      'X-Title': process.env.OPENROUTER_APP_NAME || 'private-rfp-demo'
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
         }
-      })
-    }
-  );
+      ],
+      temperature: 0.2
+    })
+  });
+
+  const text = await response.text();
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw parseGeminiError(response.status, errorText);
+    const error = new Error(`OpenRouter API call failed: ${response.status} ${text}`);
+    error.status = response.status;
+    error.bodyText = text;
+    throw error;
   }
 
-  const data = await response.json();
-  const text = extractTextFromGeminiResponse(data);
+  const data = JSON.parse(text);
+  const extracted = extractTextFromOpenRouterResponse(data);
 
-  return safeJsonParse(text);
+  return safeJsonParse(extracted);
 }
 
 async function tryModelWithRetry(model, apiKey, prompt, maxRetries = 3) {
@@ -128,11 +115,11 @@ async function tryModelWithRetry(model, apiKey, prompt, maxRetries = 3) {
 
   for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
     try {
-      return await callGemini(model, apiKey, prompt);
+      return await callOpenRouter(model, apiKey, prompt);
     } catch (error) {
       lastError = error;
 
-      if (!isRetryableGeminiError(error) || attempt === maxRetries) {
+      if (!isRetryableOpenRouterError(error.status, error.bodyText) || attempt === maxRetries) {
         break;
       }
 
@@ -145,12 +132,12 @@ async function tryModelWithRetry(model, apiKey, prompt, maxRetries = 3) {
 }
 
 async function runAnalysisAgent(documentPackage) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const primaryModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || 'gemini-1.5-flash';
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const primaryModel = process.env.OPENROUTER_MODEL || 'openrouter/free';
+  const fallbackModel = process.env.OPENROUTER_FALLBACK_MODEL || 'openrouter/free';
 
   if (!apiKey) {
-    throw new Error('Missing GEMINI_API_KEY configuration.');
+    throw new Error('Missing OPENROUTER_API_KEY configuration.');
   }
 
   const prompt = buildAnalysisPrompt(documentPackage);
@@ -158,17 +145,17 @@ async function runAnalysisAgent(documentPackage) {
   try {
     return await tryModelWithRetry(primaryModel, apiKey, prompt, 3);
   } catch (primaryError) {
-    const shouldTryFallback = isRetryableGeminiError(primaryError) && fallbackModel && fallbackModel !== primaryModel;
+    const shouldTryFallback = fallbackModel && fallbackModel !== primaryModel;
 
     if (!shouldTryFallback) {
-      throw new Error(`Gemini API call failed: ${primaryError.message}`);
+      throw new Error(`OpenRouter API call failed: ${primaryError.message}`);
     }
 
     try {
       return await tryModelWithRetry(fallbackModel, apiKey, prompt, 2);
     } catch (fallbackError) {
       throw new Error(
-        `Gemini API call failed. Primary model (${primaryModel}) error: ${primaryError.message}. Fallback model (${fallbackModel}) error: ${fallbackError.message}`
+        `OpenRouter API call failed. Primary model (${primaryModel}) error: ${primaryError.message}. Fallback model (${fallbackModel}) error: ${fallbackError.message}`
       );
     }
   }
