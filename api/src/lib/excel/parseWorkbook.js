@@ -5,6 +5,10 @@ function normalizeCellValue(value) {
     return '';
   }
 
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
   if (typeof value === 'string') {
     return value.trim();
   }
@@ -13,11 +17,38 @@ function normalizeCellValue(value) {
     return value;
   }
 
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
   return String(value).trim();
+}
+
+function parseSheet(worksheet, sheetName) {
+  const rawRows = XLSX.utils.sheet_to_json(worksheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+    blankrows: false
+  });
+
+  const rows = rawRows.map((row, rowIndex) => {
+    const normalizedRow = Array.isArray(row)
+      ? row.map((cell) => normalizeCellValue(cell))
+      : [];
+
+    return {
+      rowNumber: rowIndex + 1,
+      cells: normalizedRow
+    };
+  });
+
+  const columnCount = rows.reduce((max, row) => {
+    return Math.max(max, Array.isArray(row.cells) ? row.cells.length : 0);
+  }, 0);
+
+  return {
+    sheetName,
+    rowCount: rows.length,
+    columnCount,
+    rows
+  };
 }
 
 function parseWorkbook(buffer) {
@@ -25,33 +56,40 @@ function parseWorkbook(buffer) {
     throw new Error('parseWorkbook expected a valid Buffer.');
   }
 
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheetNames = workbook.SheetNames || [];
+  let workbook;
+
+  try {
+    workbook = XLSX.read(buffer, {
+      type: 'buffer',
+      cellDates: true
+    });
+  } catch (error) {
+    throw new Error(`Unable to read workbook: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const sheetNames = Array.isArray(workbook.SheetNames) ? workbook.SheetNames : [];
+
+  if (!sheetNames.length) {
+    return {
+      sheetNames: [],
+      sheetCount: 0,
+      sheets: []
+    };
+  }
 
   const sheets = sheetNames.map((sheetName) => {
-    const worksheet = workbook.Sheets[sheetName];
+    const worksheet = workbook.Sheets?.[sheetName];
 
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      defval: '',
-      raw: false,
-      blankrows: false
-    }).map((row, rowIndex) => {
-      const normalizedRow = Array.isArray(row)
-        ? row.map((cell) => normalizeCellValue(cell))
-        : [];
-
+    if (!worksheet) {
       return {
-        rowNumber: rowIndex + 1,
-        cells: normalizedRow
+        sheetName,
+        rowCount: 0,
+        columnCount: 0,
+        rows: []
       };
-    });
+    }
 
-    return {
-      sheetName,
-      rowCount: rows.length,
-      rows
-    };
+    return parseSheet(worksheet, sheetName);
   });
 
   return {
