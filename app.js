@@ -589,9 +589,9 @@ async function runAnalysis() {
   clearButton.disabled = true;
   openReportButton.disabled = true;
   statusTitle.textContent = 'Analyzing files';
-  statusText.textContent = 'Uploading workbook and preparing analysis.';
+  statusText.textContent = 'Uploading workbook and preparing AI analysis.';
   suggestedNextStepTitle.textContent = 'Wait for response';
-  suggestedNextStepText.textContent = 'The system is generating a structured analysis.';
+  suggestedNextStepText.textContent = 'The system is generating a structured AI-based analysis.';
   setLoading(true, 'Analysis in progress', 'The selected file set is being processed.');
 
   try {
@@ -602,7 +602,11 @@ async function runAnalysis() {
       role: fileRoles.get(file.name) || getDefaultRole(file)
     }));
 
-    const workbookFile = selectedFiles.find(file => (fileRoles.get(file.name) || getDefaultRole(file)) === 'Functional requirements' && /\.(xlsx|xls)$/i.test(file.name));
+    const workbookFile = selectedFiles.find(file =>
+      (fileRoles.get(file.name) || getDefaultRole(file)) === 'Functional requirements' &&
+      /\.(xlsx|xls)$/i.test(file.name)
+    );
+
     let workbook = null;
 
     if (workbookFile) {
@@ -612,7 +616,7 @@ async function runAnalysis() {
       );
     }
 
-    const response = await fetch('/api/analyze', {
+    const response = await fetch('/api/analyzeOpportunity', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -622,7 +626,8 @@ async function runAnalysis() {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
@@ -631,21 +636,128 @@ async function runAnalysis() {
       throw new Error(data.message || 'Analysis failed.');
     }
 
-    latestReport = data;
+    const analysis = data.analysis || {};
+    const requirements = Array.isArray(analysis.requirements) ? analysis.requirements : [];
+
+    latestReport = {
+      ok: true,
+      summary: {
+        documentCount: filePayload.length,
+        workstream: 'AI-based opportunity analysis',
+        readiness: requirements.length ? 'Ready for review' : 'Needs review'
+      },
+      executiveSummary: analysis.executiveSummary || 'No executive summary returned.',
+      scopeSignals: Array.isArray(analysis.scopeSignals)
+        ? analysis.scopeSignals.map((item, index) => ({
+            title: item.title || `Scope signal ${index + 1}`,
+            text: item.text || String(item)
+          }))
+        : [],
+      riskFlags: Array.isArray(analysis.riskFlags)
+        ? analysis.riskFlags.map((item, index) => ({
+            title: item.title || `Risk ${index + 1}`,
+            text: item.text || String(item)
+          }))
+        : [],
+      recommendedActions: [],
+      catalogMatches: requirements.map((item) => ({
+        level: item?.mpc?.endToEndScenario || 'Unclear',
+        type: item?.mpc?.catalogId || 'Unmapped',
+        name: `${item?.mpc?.processArea || 'Unknown'} → ${item?.mpc?.process || 'Unknown'}`,
+        rationale: item?.fitGap?.reasoning || 'No rationale provided.'
+      })),
+      proposalPageSections: [],
+      requirements: requirements.map((item) => ({
+        requirementId: item.requirementId || '',
+        requirementTitle: item.title || '',
+        requirementText: item.requirementText || '',
+        requirementType: item.requirementType || 'Functional requirement',
+        fitType: item?.fitGap?.assessment || 'Unclear'
+      })),
+      assumptions: Array.isArray(analysis.missingInformation)
+        ? analysis.missingInformation.map((item, index) => ({
+            title: `Missing information ${index + 1}`,
+            text: String(item)
+          }))
+        : [],
+      gaps: requirements
+        .filter(item =>
+          ['Integration gap', 'Extension gap', 'Unclear'].includes(item?.fitGap?.assessment)
+        )
+        .map((item) => ({
+          id: item.requirementId || '',
+          severity: item?.fitGap?.confidence || 'Medium',
+          area: item?.mpc?.processArea || 'Unknown',
+          impact: item.requirementText || '',
+          recommendation: item?.fitGap?.reasoning || 'Review required.'
+        })),
+      evaluationFocus: requirements.slice(0, 6).map((item) => ({
+        title: item.title || item.requirementId || 'Requirement',
+        text: item?.fitGap?.reasoning || 'Review fit/gap assessment.'
+      })),
+      responseOutline: [],
+      complianceMatrix: requirements.map((item, index) => ({
+        requirementId: item.requirementId || `REQ-${String(index + 1).padStart(3, '0')}`,
+        requirementTitle: item.title || '',
+        requirementText: item.requirementText || '',
+        requirementType: item.requirementType || 'Functional requirement',
+        mandatoryLevel: item.mandatoryLevel || 'Unclear',
+        status:
+          item?.fitGap?.assessment === 'Standard fit'
+            ? 'Detected'
+            : item?.fitGap?.assessment === 'Configuration fit'
+              ? 'Assumed'
+              : item?.fitGap?.assessment === 'Integration gap' || item?.fitGap?.assessment === 'Extension gap'
+                ? 'Gap'
+                : 'Needs review',
+        fitType: item?.fitGap?.assessment || 'Unclear',
+        confidence: item?.fitGap?.confidence || 'Low',
+        sheetName: item?.sourceReference?.sheetName || '',
+        rowNumber: item?.sourceReference?.rowNumber || '',
+        endToEndScenario: item?.mpc?.endToEndScenario || '',
+        processArea: item?.mpc?.processArea || '',
+        processId: item?.mpc?.catalogId || '',
+        process: item?.mpc?.process || '',
+        sourceDocument: item?.sourceDocument || '',
+        documentRole: 'AI interpreted',
+        sourceMode: 'AI',
+        owner: 'Bid manager',
+        deadline: '',
+        reviewStatus: 'Not started',
+        comments: '',
+        reviewReason: item?.fitGap?.reasoning || '',
+        responseAction: 'Review and confirm AI recommendation.'
+      })),
+      intakeDiagnostics: {
+        detectedSignals: requirements
+          .map(item => item?.mpc?.processArea)
+          .filter(Boolean),
+        missingSignals: Array.isArray(analysis.missingInformation)
+          ? analysis.missingInformation.map(String)
+          : []
+      },
+      feed: [
+        {
+          title: 'AI analysis completed',
+          text: `The agent reviewed ${filePayload.length} file(s) and returned ${requirements.length} interpreted requirement(s).`
+        }
+      ]
+    };
+
     openReportButton.disabled = false;
     navReport.disabled = false;
-    renderReport(data);
+    renderReport(latestReport);
     setView('report');
 
     statusTitle.textContent = 'Analysis complete';
-    statusText.textContent = 'The analysis was returned successfully.';
-    suggestedNextStepTitle.textContent = 'Review report';
-    suggestedNextStepText.textContent = 'Inspect requirement roles, process mapping, owner assignment and deadlines.';
+    statusText.textContent = 'The AI analysis was returned successfully.';
+    suggestedNextStepTitle.textContent = 'Review AI output';
+    suggestedNextStepText.textContent = 'Inspect requirements, mapping, fit/gap and confidence before shaping the proposal.';
   } catch (error) {
     console.error(error);
     statusTitle.textContent = 'Analysis failed';
     statusText.textContent = 'The backend could not process the request.';
-    suggestedNextStepTitle.textContent = 'Check API and payload';
+    suggestedNextStepTitle.textContent = 'Check API and configuration';
     suggestedNextStepText.textContent = error.message;
   } finally {
     analyzeButton.disabled = !selectedFiles.length;
