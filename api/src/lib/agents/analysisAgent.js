@@ -1,16 +1,15 @@
-const { GoogleGenAI } = require('@google/genai');
 const { buildAnalysisPrompt } = require('../prompts/analysisPrompt');
 
-function extractText(response) {
-  if (response?.text) return response.text;
+function extractTextFromGeminiResponse(data) {
+  const candidates = data?.candidates;
 
-  const candidates = response?.candidates;
   if (!Array.isArray(candidates) || !candidates.length) {
     return '';
   }
 
   const parts = candidates[0]?.content?.parts;
-  if (!Array.isArray(parts)) {
+
+  if (!Array.isArray(parts) || !parts.length) {
     return '';
   }
 
@@ -53,19 +52,43 @@ async function runAnalysisAgent(documentPackage) {
     throw new Error('Missing GEMINI_API_KEY configuration.');
   }
 
-  const ai = new GoogleGenAI({ apiKey });
   const prompt = buildAnalysisPrompt(documentPackage);
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: prompt,
-    config: {
-      temperature: 0.2,
-      responseMimeType: 'application/json'
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json'
+        }
+      })
     }
-  });
+  );
 
-  const text = extractText(response);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API call failed: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = extractTextFromGeminiResponse(data);
+
   return safeJsonParse(text);
 }
 
