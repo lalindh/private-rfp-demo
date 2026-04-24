@@ -24,6 +24,7 @@ Your job:
 - Be conservative; if unclear, say unclear
 - Do not invent precise Microsoft capabilities unless strongly supported by the material
 - Return only valid JSON
+- Do not wrap the JSON in markdown code fences
 
 Required JSON shape:
 {
