@@ -1,4 +1,3 @@
-
 const { app } = require('@azure/functions');
 const { normalizeDocuments } = require('../lib/documents/normalizeDocuments');
 const { runAnalysisAgent } = require('../lib/agents/analysisAgent');
