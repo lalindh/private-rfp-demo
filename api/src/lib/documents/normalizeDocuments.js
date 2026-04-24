@@ -1,4 +1,3 @@
-
 function normalizeDocuments(files = [], workbook = null) {
   const normalizedFiles = Array.isArray(files)
     ? files.map((file) => ({
