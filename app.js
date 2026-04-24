@@ -371,8 +371,7 @@ function renderComplianceMatrix(items) {
   `).join('');
 
   reportComplianceMatrix.querySelectorAll('[data-row-id][data-field]').forEach(element => {
-    const eventName = element.tagName === 'TEXTAREA' || element.tagName === 'INPUT' ? 'change' : 'change';
-    element.addEventListener(eventName, event => {
+    element.addEventListener('change', event => {
       const rowId = event.target.dataset.rowId;
       const field = event.target.dataset.field;
       const value = event.target.value;
@@ -548,6 +547,41 @@ function renderReport(data) {
   renderComplianceMatrix(matrixData);
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function dataUrlToBase64(dataUrl) {
+  const commaIndex = dataUrl.indexOf(',');
+  return commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
+}
+
+async function uploadWorkbookForAnalysis(file, role) {
+  const dataUrl = await readFileAsDataUrl(file);
+  const response = await fetch('/api/uploadWorkbook', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      fileName: file.name,
+      fileContentBase64: dataUrlToBase64(dataUrl),
+      role
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.message || `Workbook upload failed with HTTP ${response.status}.`);
+  }
+
+  return payload.workbook;
+}
+
 async function runAnalysis() {
   if (!selectedFiles.length) return;
 
@@ -555,25 +589,36 @@ async function runAnalysis() {
   clearButton.disabled = true;
   openReportButton.disabled = true;
   statusTitle.textContent = 'Analyzing files';
-  statusText.textContent = 'Sending selected file metadata to the analysis API.';
+  statusText.textContent = 'Uploading workbook and preparing analysis.';
   suggestedNextStepTitle.textContent = 'Wait for response';
   suggestedNextStepText.textContent = 'The system is generating a structured analysis.';
   setLoading(true, 'Analysis in progress', 'The selected file set is being processed.');
 
   try {
-    const payload = {
-      files: selectedFiles.map(file => ({
-        name: file.name,
-        size: file.size,
-        type: file.type || '',
-        role: fileRoles.get(file.name) || getDefaultRole(file)
-      }))
-    };
+    const filePayload = selectedFiles.map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type || '',
+      role: fileRoles.get(file.name) || getDefaultRole(file)
+    }));
+
+    const workbookFile = selectedFiles.find(file => (fileRoles.get(file.name) || getDefaultRole(file)) === 'Functional requirements' && /\.(xlsx|xls)$/i.test(file.name));
+    let workbook = null;
+
+    if (workbookFile) {
+      workbook = await uploadWorkbookForAnalysis(
+        workbookFile,
+        fileRoles.get(workbookFile.name) || getDefaultRole(workbookFile)
+      );
+    }
 
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        files: filePayload,
+        workbook
+      })
     });
 
     if (!response.ok) {
