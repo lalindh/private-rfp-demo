@@ -6,12 +6,23 @@ function removeDataUrlPrefix(base64Value) {
     return '';
   }
 
-  const commaIndex = base64Value.indexOf(',');
-  if (base64Value.startsWith('data:') && commaIndex !== -1) {
-    return base64Value.slice(commaIndex + 1);
+  const trimmedValue = base64Value.trim();
+  const commaIndex = trimmedValue.indexOf(',');
+
+  if (trimmedValue.startsWith('data:') && commaIndex !== -1) {
+    return trimmedValue.slice(commaIndex + 1).trim();
   }
 
-  return base64Value;
+  return trimmedValue;
+}
+
+function isLikelyBase64(value) {
+  if (!value || typeof value !== 'string') {
+    return false;
+  }
+
+  const normalized = value.replace(/\s+/g, '');
+  return normalized.length > 0 && normalized.length % 4 === 0 && /^[A-Za-z0-9+/=]+$/.test(normalized);
 }
 
 app.http('uploadWorkbook', {
@@ -20,53 +31,86 @@ app.http('uploadWorkbook', {
   route: 'uploadWorkbook',
   handler: async (request, context) => {
     try {
-      const body = await request.json();
+      let body;
+
+      try {
+        body = await request.json();
+      } catch (error) {
+        return {
+          status: 400,
+          jsonBody: {
+            ok: false,
+            message: 'Request body must be valid JSON.'
+          }
+        };
+      }
 
       const fileName = String(body?.fileName || '').trim();
       const fileContentBase64 = removeDataUrlPrefix(body?.fileContentBase64);
 
       if (!fileName) {
-        return Response.json(
-          {
+        return {
+          status: 400,
+          jsonBody: {
             ok: false,
             message: 'fileName is required.'
-          },
-          { status: 400 }
-        );
+          }
+        };
       }
 
       if (!fileContentBase64) {
-        return Response.json(
-          {
+        return {
+          status: 400,
+          jsonBody: {
             ok: false,
             message: 'fileContentBase64 is required.'
-          },
-          { status: 400 }
-        );
+          }
+        };
+      }
+
+      if (!isLikelyBase64(fileContentBase64)) {
+        return {
+          status: 400,
+          jsonBody: {
+            ok: false,
+            message: 'fileContentBase64 must be a valid base64 string.'
+          }
+        };
       }
 
       const buffer = Buffer.from(fileContentBase64, 'base64');
+
+      if (!buffer.length) {
+        return {
+          status: 400,
+          jsonBody: {
+            ok: false,
+            message: 'Decoded file content is empty.'
+          }
+        };
+      }
+
       const workbook = parseWorkbook(buffer);
 
-      return Response.json(
-        {
+      return {
+        status: 200,
+        jsonBody: {
           ok: true,
           fileName,
           workbook
-        },
-        { status: 200 }
-      );
+        }
+      };
     } catch (error) {
       context.log('uploadWorkbook failed', error);
 
-      return Response.json(
-        {
+      return {
+        status: 500,
+        jsonBody: {
           ok: false,
           message: 'Failed to parse workbook.',
-          error: error.message
-        },
-        { status: 500 }
-      );
+          error: error instanceof Error ? error.message : String(error)
+        }
+      };
     }
   }
 });
