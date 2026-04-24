@@ -44,16 +44,47 @@ function safeJsonParse(text) {
   }
 }
 
-async function runAnalysisAgent(documentPackage) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  if (!apiKey) {
-    throw new Error('Missing GEMINI_API_KEY configuration.');
+function parseGeminiError(status, text) {
+  let parsed = null;
+
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    parsed = null;
   }
 
-  const prompt = buildAnalysisPrompt(documentPackage);
+  const message =
+    parsed?.error?.message ||
+    text ||
+    `Gemini API call failed with status ${status}`;
 
+  const code = parsed?.error?.code || status;
+  const apiStatus = parsed?.error?.status || 'UNKNOWN';
+
+  return {
+    code,
+    status: apiStatus,
+    message
+  };
+}
+
+function isRetryableGeminiError(error) {
+  return (
+    error &&
+    (
+      error.code === 503 ||
+      error.code === 429 ||
+      error.status === 'UNAVAILABLE' ||
+      error.status === 'RESOURCE_EXHAUSTED'
+    )
+  );
+}
+
+async function callGemini(model, apiKey, prompt) {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
@@ -83,13 +114,64 @@ async function runAnalysisAgent(documentPackage) {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gemini API call failed: ${response.status} ${errorText}`);
+    throw parseGeminiError(response.status, errorText);
   }
 
   const data = await response.json();
   const text = extractTextFromGeminiResponse(data);
 
   return safeJsonParse(text);
+}
+
+async function tryModelWithRetry(model, apiKey, prompt, maxRetries = 3) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+    try {
+      return await callGemini(model, apiKey, prompt);
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableGeminiError(error) || attempt === maxRetries) {
+        break;
+      }
+
+      const delayMs = Math.pow(2, attempt - 1) * 1500;
+      await sleep(delayMs);
+    }
+  }
+
+  throw lastError;
+}
+
+async function runAnalysisAgent(documentPackage) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const primaryModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || 'gemini-1.5-flash';
+
+  if (!apiKey) {
+    throw new Error('Missing GEMINI_API_KEY configuration.');
+  }
+
+  const prompt = buildAnalysisPrompt(documentPackage);
+
+  try {
+    return await tryModelWithRetry(primaryModel, apiKey, prompt, 3);
+  } catch (primaryError) {
+    const shouldTryFallback = isRetryableGeminiError(primaryError) && fallbackModel && fallbackModel !== primaryModel;
+
+    if (!shouldTryFallback) {
+      throw new Error(`Gemini API call failed: ${primaryError.message}`);
+    }
+
+    try {
+      return await tryModelWithRetry(fallbackModel, apiKey, prompt, 2);
+    } catch (fallbackError) {
+      throw new Error(
+        `Gemini API call failed. Primary model (${primaryModel}) error: ${primaryError.message}. Fallback model (${fallbackModel}) error: ${fallbackError.message}`
+      );
+    }
+  }
 }
 
 module.exports = {
