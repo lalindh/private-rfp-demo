@@ -344,8 +344,9 @@ function buildRequirementRow(file, signal, index, options = {}) {
   };
 }
 
-function buildRequirements(files) {
+function buildRequirements(files, workbook) {
   const rows = [];
+  const workbookSheets = Array.isArray(workbook?.sheets) ? workbook.sheets : [];
 
   files.forEach((file, fileIndex) => {
     const role = String(file.role || 'Other');
@@ -353,18 +354,37 @@ function buildRequirements(files) {
     const isFunctionalExcel = role === 'Functional requirements' && (ext === 'xlsx' || ext === 'xls');
     const signals = splitFileNameToSignals(file.name);
 
-    if (isFunctionalExcel) {
-      const sheetCandidates = ['Overview', 'Functional Requirements', 'Processes', 'Integrations', 'Reporting'];
-      const selectedSignals = signals.length ? signals : [`workbook ${fileIndex + 1}`];
+    if (isFunctionalExcel && workbookSheets.length) {
+      workbookSheets.slice(0, 6).forEach((sheet, sheetIndex) => {
+        const sheetName = String(sheet?.sheetName || `Sheet ${sheetIndex + 1}`);
+        const rowsToUse = Array.isArray(sheet?.rows) ? sheet.rows.slice(0, 4) : [];
 
-      sheetCandidates.forEach((sheetName, sheetIndex) => {
-        selectedSignals.slice(0, 3).forEach((signal, signalIndex) => {
+        if (!rowsToUse.length) {
+          const baseSignals = signals.length ? signals : [`workbook ${fileIndex + 1}`];
+          baseSignals.slice(0, 2).forEach((signal, signalIndex) => {
+            rows.push(
+              buildRequirementRow(file, `${signal} ${sheetName}`.trim(), rows.length, {
+                documentRole: role,
+                sourceMode: 'Extracted',
+                sheetName,
+                rowNumber: 2 + signalIndex + sheetIndex * 10
+              })
+            );
+          });
+          return;
+        }
+
+        rowsToUse.forEach((row, rowIndex) => {
+          const cellText = Array.isArray(row?.cells)
+            ? row.cells.map(cell => String(cell ?? '')).filter(Boolean).join(' ')
+            : '';
+          const rowSignal = cellText || `${sheetName} row ${rowIndex + 1}`;
           rows.push(
-            buildRequirementRow(file, `${signal} ${sheetName}`.trim(), rows.length, {
+            buildRequirementRow(file, rowSignal, rows.length, {
               documentRole: role,
               sourceMode: 'Extracted',
               sheetName,
-              rowNumber: 2 + signalIndex + sheetIndex * 10
+              rowNumber: Number(row?.rowNumber || rowIndex + 1)
             })
           );
         });
@@ -434,14 +454,17 @@ function buildRiskFlags(requirements) {
     }));
 }
 
-function buildRecommendedActions(files) {
+function buildRecommendedActions(files, workbook) {
   const hasFunctionalMaster = files.some(file => file.role === 'Functional requirements');
+  const workbookPresent = Array.isArray(workbook?.sheetNames) && workbook.sheetNames.length > 0;
 
   return [
     {
       title: 'Validate requirement extraction',
       text: hasFunctionalMaster
-        ? 'Review whether the designated functional requirements source is represented correctly in the current requirement list.'
+        ? workbookPresent
+          ? 'Review whether the workbook sheets and rows are being represented correctly in the current requirement list.'
+          : 'Review whether the designated functional requirements source is represented correctly in the current requirement list.'
         : 'No functional requirements master was marked. Confirm whether one of the uploaded files should be treated as the primary source.'
     },
     {
@@ -543,7 +566,7 @@ function buildResponseOutline(requirements) {
   return outline;
 }
 
-function buildDiagnostics(requirements, files) {
+function buildDiagnostics(requirements, files, workbook) {
   const functionalMasters = files.filter(file => file.role === 'Functional requirements').map(file => file.name);
 
   return {
@@ -560,14 +583,21 @@ function buildDiagnostics(requirements, files) {
       fileName: file.name,
       role: file.role || 'Other'
     })),
-    functionalRequirementSources: functionalMasters
+    functionalRequirementSources: functionalMasters,
+    workbookSummary: workbook
+      ? {
+          sheetCount: workbook.sheetCount || 0,
+          sheetNames: Array.isArray(workbook.sheetNames) ? workbook.sheetNames : []
+        }
+      : null
   };
 }
 
-function buildFeed(files, requirements) {
+function buildFeed(files, requirements, workbook) {
   const extracted = requirements.filter(item => item.sourceMode === 'Extracted').length;
   const inferred = requirements.filter(item => item.sourceMode === 'Inferred').length;
   const functionalMasters = files.filter(file => file.role === 'Functional requirements').length;
+  const workbookSheets = Array.isArray(workbook?.sheetNames) ? workbook.sheetNames.length : 0;
 
   return [
     {
@@ -577,6 +607,12 @@ function buildFeed(files, requirements) {
     {
       title: 'Functional requirements sources marked',
       text: `${functionalMasters} file(s) were marked as functional requirements sources.`
+    },
+    {
+      title: 'Workbook parsed',
+      text: workbookSheets > 0
+        ? `The workbook parser found ${workbookSheets} sheet(s) that can be used for requirement extraction.`
+        : 'No workbook data was available for parsing.'
     },
     {
       title: 'Requirements synthesized',
@@ -596,15 +632,16 @@ app.http('analyze', {
     try {
       const body = await request.json();
       const files = Array.isArray(body?.files) ? body.files : [];
+      const workbook = body?.workbook && typeof body.workbook === 'object' ? body.workbook : null;
 
       if (!files.length) {
-        return Response.json(
-          {
+        return {
+          status: 400,
+          jsonBody: {
             ok: false,
             message: 'No files were provided.'
-          },
-          { status: 400 }
-        );
+          }
+        };
       }
 
       const normalizedFiles = files.map(file => ({
@@ -614,7 +651,7 @@ app.http('analyze', {
         role: String(file.role || 'Other')
       }));
 
-      const requirements = buildRequirements(normalizedFiles);
+      const requirements = buildRequirements(normalizedFiles, workbook);
 
       const response = {
         ok: true,
@@ -640,7 +677,7 @@ app.http('analyze', {
         executiveSummary: buildExecutiveSummary(requirements, normalizedFiles),
         scopeSignals: buildScopeSignals(requirements),
         riskFlags: buildRiskFlags(requirements),
-        recommendedActions: buildRecommendedActions(normalizedFiles),
+        recommendedActions: buildRecommendedActions(normalizedFiles, workbook),
         catalogMatches: buildCatalogMatches(requirements),
         proposalPageSections: buildProposalSections(requirements),
         requirements,
@@ -649,21 +686,24 @@ app.http('analyze', {
         evaluationFocus: buildEvaluationFocus(requirements),
         responseOutline: buildResponseOutline(requirements),
         complianceMatrix: requirements,
-        intakeDiagnostics: buildDiagnostics(requirements, normalizedFiles),
-        feed: buildFeed(normalizedFiles, requirements)
+        intakeDiagnostics: buildDiagnostics(requirements, normalizedFiles, workbook),
+        feed: buildFeed(normalizedFiles, requirements, workbook)
       };
 
-      return Response.json(response, { status: 200 });
+      return {
+        status: 200,
+        jsonBody: response
+      };
     } catch (error) {
       context.log('Analyze function failed', error);
 
-      return Response.json(
-        {
+      return {
+        status: 500,
+        jsonBody: {
           ok: false,
           message: 'Failed to analyze the uploaded files.'
-        },
-        { status: 500 }
-      );
+        }
+      };
     }
   }
 });
