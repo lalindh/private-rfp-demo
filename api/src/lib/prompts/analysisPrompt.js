@@ -1,4 +1,3 @@
-
 function buildAnalysisPrompt(documentPackage) {
   return `
 You are a Microsoft Business Applications analysis agent.
