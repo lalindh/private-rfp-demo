@@ -1,63 +1,72 @@
+const { GoogleGenAI } = require('@google/genai');
 const { buildAnalysisPrompt } = require('../prompts/analysisPrompt');
 
-async function runAnalysisAgent(documentPackage) {
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-10-21';
+function extractText(response) {
+  if (response?.text) return response.text;
 
-  if (!endpoint || !apiKey || !deployment) {
-    throw new Error('Missing Azure OpenAI configuration.');
+  const candidates = response?.candidates;
+  if (!Array.isArray(candidates) || !candidates.length) {
+    return '';
   }
 
-  const prompt = buildAnalysisPrompt(documentPackage);
-
-  const url =
-    `${endpoint.replace(/\/$/, '')}` +
-    `/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': apiKey
-    },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a precise Microsoft Business Applications analysis agent. Return valid JSON only.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.2,
-      response_format: { type: 'json_object' }
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Analysis model call failed: ${response.status} ${errorText}`);
+  const parts = candidates[0]?.content?.parts;
+  if (!Array.isArray(parts)) {
+    return '';
   }
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
+  return parts
+    .map((part) => part?.text || '')
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
 
-  if (!content) {
+function safeJsonParse(text) {
+  const trimmed = String(text || '').trim();
+
+  if (!trimmed) {
     throw new Error('Model returned empty content.');
   }
 
-  let parsed;
   try {
-    parsed = JSON.parse(content);
+    return JSON.parse(trimmed);
   } catch (error) {
-    throw new Error(`Model did not return valid JSON: ${error.message}`);
+    const cleaned = trimmed
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (innerError) {
+      throw new Error(`Model did not return valid JSON: ${innerError.message}`);
+    }
+  }
+}
+
+async function runAnalysisAgent(documentPackage) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+  if (!apiKey) {
+    throw new Error('Missing GEMINI_API_KEY configuration.');
   }
 
-  return parsed;
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = buildAnalysisPrompt(documentPackage);
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: {
+      temperature: 0.2,
+      responseMimeType: 'application/json'
+    }
+  });
+
+  const text = extractText(response);
+  return safeJsonParse(text);
 }
 
 module.exports = {
